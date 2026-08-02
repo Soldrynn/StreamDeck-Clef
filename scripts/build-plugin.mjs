@@ -13,8 +13,8 @@ for (const name of ["LICENSE", "NOTICE", "THIRD_PARTY_NOTICES.md"]) {
   await copyFile(join(root, name), join(pluginDirectory, name));
 }
 
-const iconSource = join(pluginDirectory, "assets", "plugin-icon.svg");
-const iconDirectory = dirname(iconSource);
+const iconSource = join(root, "branding", "clef-app-icon-face-only-transparent.png");
+const iconDirectory = join(pluginDirectory, "assets");
 await sharp(iconSource).resize(256, 256).png().toFile(join(iconDirectory, "plugin-icon.png"));
 await sharp(iconSource).resize(512, 512).png().toFile(join(iconDirectory, "plugin-icon@2x.png"));
 

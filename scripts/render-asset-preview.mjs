@@ -8,7 +8,7 @@ const assets = join(root, "com.davedev.clef.sdPlugin", "assets");
 const output = join(root, "docs", "asset-preview.png");
 
 const items = [
-  { label: "Plugin", file: "plugin-icon.svg", x: 46, y: 73, size: 160 },
+  { label: "Plugin", file: "plugin-icon.png", x: 46, y: 73, size: 160 },
   { label: "Playback", file: "actions/playback.svg", x: 258, y: 86, size: 144 },
   { label: "Volume", file: "actions/volume.svg", x: 439, y: 86, size: 144 },
   { label: "No artwork", file: "placeholders/album.svg", x: 632, y: 104, size: 108 },
