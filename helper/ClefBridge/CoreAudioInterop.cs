@@ -1,6 +1,6 @@
 using System.Runtime.InteropServices;
 
-namespace AppleMusicBridge;
+namespace ClefBridge;
 
 public enum EDataFlow { Render, Capture, All, DataFlowCount }
 public enum ERole { Console, Multimedia, Communications, RoleCount }

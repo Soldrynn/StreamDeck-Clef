@@ -1,7 +1,7 @@
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 
-namespace AppleMusicBridge;
+namespace ClefBridge;
 
 internal sealed class CoreAudioResolver : IDisposable
 {
@@ -77,7 +77,7 @@ internal sealed class CoreAudioResolver : IDisposable
         await RefreshAsync();
         SelectedSession? selected;
         lock (_gate) selected = _selected;
-        if (selected is null) throw new InvalidOperationException("Apple Music audio session is unavailable.");
+        if (selected is null) throw new InvalidOperationException("Apple Music for Windows audio session is unavailable.");
         ThrowIfFailed(selected.Volume.GetMasterVolume(out var current));
         var next = Math.Clamp(current + (float)(deltaPercentagePoints / 100d), 0f, 1f);
         var context = EventContext;
@@ -88,7 +88,7 @@ internal sealed class CoreAudioResolver : IDisposable
             if (selected.Volume.GetMute(out var currentMute) >= 0) muted = currentMute;
         }
         catch { }
-        // Some Apple Music/Amp sessions accept SetMasterVolume immediately but
+        // Some Apple Music for Windows/Amp sessions accept SetMasterVolume immediately but
         // return a stale cached value and omit the expected callback for several
         // seconds. The successful target is authoritative for immediate UI;
         // ordinary event/watchdog reads reconcile any later external change.
@@ -100,7 +100,7 @@ internal sealed class CoreAudioResolver : IDisposable
         await RefreshAsync();
         SelectedSession? selected;
         lock (_gate) selected = _selected;
-        if (selected is null) throw new InvalidOperationException("Apple Music audio session is unavailable.");
+        if (selected is null) throw new InvalidOperationException("Apple Music for Windows audio session is unavailable.");
         ThrowIfFailed(selected.Volume.GetMute(out var muted));
         var context = EventContext;
         ThrowIfFailed(selected.Volume.SetMute(!muted, ref context));

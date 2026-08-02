@@ -2,11 +2,11 @@ node_modules/
 .tools/
 dist/
 logs/
-com.davedev.apple-music.sdPlugin/bin/
-com.davedev.apple-music.sdPlugin/helper/
-com.davedev.apple-music.sdPlugin/LICENSE
-com.davedev.apple-music.sdPlugin/NOTICE
-com.davedev.apple-music.sdPlugin/THIRD_PARTY_NOTICES.md
+com.davedev.clef.sdPlugin/bin/
+com.davedev.clef.sdPlugin/helper/
+com.davedev.clef.sdPlugin/LICENSE
+com.davedev.clef.sdPlugin/NOTICE
+com.davedev.clef.sdPlugin/THIRD_PARTY_NOTICES.md
 helper/**/bin/
 helper/**/obj/
 *.log

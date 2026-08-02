@@ -1,9 +1,9 @@
 {
-  "name": "stream-deck-apple-music-glass",
-  "version": "0.1.12",
+  "name": "stream-deck-clef",
+  "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Native Apple Music playback and app-volume controls for Stream Deck + on Windows 11.",
+  "description": "Clef provides Stream Deck + controls for Apple Music for Windows on Windows 11.",
   "license": "Apache-2.0",
   "author": "DaveDev",
   "repository": {
@@ -15,7 +15,8 @@
   },
   "homepage": "https://github.com/Soldrynn/StreamDeck-WindowsAppleMusic#readme",
   "keywords": [
-    "apple-music",
+    "clef",
+    "music-controls",
     "elgato",
     "stream-deck",
     "stream-deck-plus",
@@ -27,8 +28,8 @@
     "build:helper": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/build-helper.ps1",
     "build": "npm run build:plugin && npm run build:helper",
     "check": "tsc --noEmit && node --experimental-strip-types --test tests/*.test.ts && node scripts/validate-assets.mjs && node scripts/validate-release.mjs && node scripts/smoke-plugin-bundle.mjs",
-    "validate": "streamdeck validate com.davedev.apple-music.sdPlugin --no-update-check",
-    "pack": "streamdeck pack com.davedev.apple-music.sdPlugin --output dist --force --no-update-check"
+    "validate": "streamdeck validate com.davedev.clef.sdPlugin --no-update-check",
+    "pack": "streamdeck pack com.davedev.clef.sdPlugin --output dist --force --no-update-check"
   },
   "devDependencies": {
     "@elgato/cli": "latest",

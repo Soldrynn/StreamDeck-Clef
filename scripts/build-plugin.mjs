@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 import sharp from "sharp";
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
-const pluginDirectory = join(root, "com.davedev.apple-music.sdPlugin");
+const pluginDirectory = join(root, "com.davedev.clef.sdPlugin");
 const outputDirectory = join(pluginDirectory, "bin");
 await mkdir(outputDirectory, { recursive: true });
 
@@ -21,7 +21,7 @@ await sharp(iconSource).resize(512, 512).png().toFile(join(iconDirectory, "plugi
 await build({
   absWorkingDir: root,
   entryPoints: ["./src/plugin.ts"],
-  outfile: "com.davedev.apple-music.sdPlugin/bin/plugin.js",
+  outfile: "com.davedev.clef.sdPlugin/bin/plugin.js",
   bundle: true,
   format: "esm",
   platform: "node",

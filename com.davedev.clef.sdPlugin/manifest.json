@@ -23,7 +23,7 @@
           "Image": "assets/actions/playback"
         }
       ],
-      "UUID": "com.davedev.apple-music.playback"
+      "UUID": "com.davedev.clef.playback"
     },
     {
       "Controllers": [
@@ -35,9 +35,9 @@
         "layout": "layouts/volume.json",
         "StackColor": "#555555",
         "TriggerDescription": {
-          "Push": "Mute / Unmute Apple Music",
-          "Rotate": "Adjust Apple Music volume",
-          "Touch": "Mute / Unmute Apple Music"
+          "Push": "Mute / Unmute Apple Music for Windows",
+          "Rotate": "Adjust Apple Music for Windows volume",
+          "Touch": "Mute / Unmute Apple Music for Windows"
         }
       },
       "Icon": "assets/actions/volume-list",
@@ -48,7 +48,7 @@
           "Image": "assets/actions/volume"
         }
       ],
-      "UUID": "com.davedev.apple-music.volume"
+      "UUID": "com.davedev.clef.volume"
     }
   ],
   "ApplicationsToMonitor": {
@@ -58,12 +58,12 @@
     ]
   },
   "Author": "DaveDev",
-  "Category": "Apple Music",
+  "Category": "Clef",
   "CategoryIcon": "assets/category",
   "CodePath": "bin/plugin.js",
-  "Description": "Control Apple Music playback and app volume with Stream Deck + dials on Windows 11.",
+  "Description": "Clef controls Apple Music for Windows playback and app volume with Stream Deck + dials on Windows 11.",
   "Icon": "assets/plugin-icon",
-  "Name": "Apple Music",
+  "Name": "Clef",
   "Nodejs": {
     "Version": "24"
   },
@@ -77,6 +77,6 @@
   "Software": {
     "MinimumVersion": "7.1"
   },
-  "UUID": "com.davedev.apple-music",
-  "Version": "0.1.12.0"
+  "UUID": "com.davedev.clef",
+  "Version": "0.1.0.0"
 }

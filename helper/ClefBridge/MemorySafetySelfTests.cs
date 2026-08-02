@@ -1,4 +1,4 @@
-namespace AppleMusicBridge;
+namespace ClefBridge;
 
 internal static class MemorySafetySelfTests
 {

@@ -1,12 +1,12 @@
-# Apple Music for Stream Deck +
+# Clef for Stream Deck +
 
-![Apple Music for Stream Deck + icon](com.davedev.apple-music.sdPlugin/assets/plugin-icon.png)
+![Clef icon](com.davedev.clef.sdPlugin/assets/plugin-icon.png)
 
 [![Windows 11](https://img.shields.io/badge/Windows-11-555555)](https://www.microsoft.com/windows/windows-11)
 [![Stream Deck +](https://img.shields.io/badge/Stream%20Deck-%2B-555555)](https://www.elgato.com/us/en/p/stream-deck-plus-black)
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-555555)](LICENSE)
 
-Control Apple Music for Windows directly from the dials and touch strip on your Elgato Stream Deck +. Skip tracks, play or pause, change only Apple Music's volume, mute the app, and view live track information without keyboard shortcuts or simulated clicks.
+Clef controls Apple Music for Windows directly from the dials and touch strip on your Elgato Stream Deck +. Skip tracks, play or pause, change only the app's volume, mute it, and view live track information without keyboard shortcuts or simulated clicks.
 
 ## Features
 
@@ -14,7 +14,7 @@ The plugin provides the following features:
 
 - Native playback controls through Windows media-session APIs.
 - Per-app volume and mute controls that do not change your system volume.
-- Automatic recovery when Apple Music, Stream Deck, or Windows restarts.
+- Automatic recovery when Apple Music for Windows, Stream Deck, or Windows restarts.
 - Resilient volume binding when Windows renames `Amp Library Agent`, including numbered variants.
 - Live title, artist, progress, volume, mute, and connection feedback.
 - Album artwork with protection against delayed covers appearing on the wrong song.
@@ -36,10 +36,10 @@ The release does not include an ARM64 helper.
 
 To install the plugin:
 
-1. Download `com.davedev.apple-music.streamDeckPlugin` from the [latest GitHub release](https://github.com/Soldrynn/StreamDeck-WindowsAppleMusic/releases/latest).
+1. Download `com.davedev.clef.streamDeckPlugin` from the [latest GitHub release](https://github.com/Soldrynn/StreamDeck-WindowsAppleMusic/releases/latest).
 2. Double-click the downloaded file.
 3. Approve the installation in Stream Deck.
-4. Open the **Apple Music** category in the Stream Deck action list.
+4. Open the **Clef** category in the Stream Deck action list.
 5. Drag **Playback Controls** or **Volume Controls** onto a Stream Deck + dial.
 
 The plugin starts its local Windows helper automatically. You don't need to install .NET or configure an audio-session name.
@@ -51,7 +51,7 @@ The two actions use the same interaction pattern:
 | Action | Rotate left | Rotate right | Press or touch |
 | --- | --- | --- | --- |
 | Playback Controls | Previous track | Next track | Play or pause |
-| Volume Controls | Lower Apple Music volume | Raise Apple Music volume | Mute or unmute Apple Music |
+| Volume Controls | Lower app volume | Raise app volume | Mute or unmute the app |
 
 To change the volume step, select **Volume Controls** in Stream Deck and choose a value from 1% to 10%. The default step is 2%.
 
@@ -60,15 +60,15 @@ To change the volume step, select **Volume Controls** in Stream Deck and choose 
 The touch strip reports the current state:
 
 - Playback Controls shows the song title, artist, playback status, elapsed time, progress, and available album art.
-- Volume Controls shows Apple Music's current volume and mute state.
+- Volume Controls shows the current Apple Music for Windows volume and mute state.
 - **Unavailable** means that Windows cannot currently find the matching media or audio session.
 - **Reconnecting** means that the helper is recovering after an app, device, or Windows state change.
 
-Apple Music can delay album artwork after a track change. If a dial-initiated skip still has no valid cover after 1.25 seconds, the plugin performs one brief pause-and-resume refresh and restores playback automatically.
+Apple Music for Windows can delay album artwork after a track change. If a dial-initiated skip still has no valid cover after 1.25 seconds, Clef performs one brief pause-and-resume refresh and restores playback automatically.
 
 ## Troubleshoot the plugin
 
-### Apple Music is unavailable
+### Apple Music for Windows is unavailable
 
 Do the following:
 
@@ -76,11 +76,11 @@ Do the following:
 2. Play a song for a few seconds.
 3. Wait for the touch strip to reconnect.
 
-Apple Music does not always create its media and audio sessions until it has played audio once.
+Apple Music for Windows does not always create its media and audio sessions until it has played audio once.
 
 ### Volume is unavailable
 
-Start playback once so that Windows creates the Apple Music audio session. The plugin searches every active output device and reconnects automatically when `Amp Library Agent` changes.
+Start playback once so that Windows creates the Apple Music for Windows audio session. Clef searches every active output device and reconnects automatically when `Amp Library Agent` changes.
 
 ### Album artwork is delayed
 
@@ -88,9 +88,9 @@ Keep playback running for a few seconds. Windows can publish the new title befor
 
 ### Previous restarts the current song
 
-Apple Music can treat the first Previous request as a restart. The plugin checks whether the song changed and sends one additional direct transport request when needed.
+Apple Music for Windows can treat the first Previous request as a restart. Clef checks whether the song changed and sends one additional direct transport request when needed.
 
-If the issue continues, [open a GitHub issue](https://github.com/Soldrynn/StreamDeck-WindowsAppleMusic/issues/new) and include your Windows, Stream Deck, Apple Music, and plugin versions.
+If the issue continues, [open a GitHub issue](https://github.com/Soldrynn/StreamDeck-WindowsAppleMusic/issues/new) and include your Windows, Stream Deck, Apple Music for Windows, and Clef versions.
 
 ## Known limitations
 
@@ -117,7 +117,7 @@ npm run validate
 npm run pack
 ```
 
-The final installer is written to `dist/com.davedev.apple-music.streamDeckPlugin`. The Windows helper is self-contained, so plugin users don't need the .NET runtime.
+The final installer is written to `dist/com.davedev.clef.streamDeckPlugin`. The Windows helper is self-contained, so plugin users don't need the .NET runtime.
 
 ## Project layout
 
@@ -126,8 +126,8 @@ The repository uses the following top-level directories:
 | Path | Purpose |
 | --- | --- |
 | `src/` | TypeScript Stream Deck actions, rendering, settings, and helper supervision. |
-| `helper/AppleMusicBridge/` | C# Windows media-session and Core Audio helper. |
-| `com.davedev.apple-music.sdPlugin/` | Stream Deck manifest, layouts, property inspector, and visual assets. |
+| `helper/ClefBridge/` | C# Windows media-session and Core Audio helper. |
+| `com.davedev.clef.sdPlugin/` | Stream Deck manifest, layouts, property inspector, and visual assets. |
 | `tests/` | TypeScript behavior and regression tests. |
 | `scripts/` | Build, validation, packaging, smoke-test, and memory-test commands. |
 

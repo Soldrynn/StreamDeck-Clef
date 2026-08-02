@@ -1,6 +1,6 @@
 using System.Text.Json;
 
-namespace AppleMusicBridge;
+namespace ClefBridge;
 
 internal sealed class BridgeService : IAsyncDisposable
 {

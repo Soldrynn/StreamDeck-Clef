@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 import sharp from "sharp";
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
-const assets = join(root, "com.davedev.apple-music.sdPlugin", "assets");
+const assets = join(root, "com.davedev.clef.sdPlugin", "assets");
 const output = join(root, "docs", "asset-preview.png");
 
 const items = [
@@ -29,7 +29,7 @@ const backdrop = Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="920
     </linearGradient>
   </defs>
   <rect width="920" height="390" rx="24" fill="url(#bg)"/>
-  <text x="36" y="37" fill="#FFFFFF" font-family="Segoe UI, sans-serif" font-size="18" font-weight="700">Apple Music controller — precision glass assets</text>
+  <text x="36" y="37" fill="#FFFFFF" font-family="Segoe UI, sans-serif" font-size="18" font-weight="700">Clef — precision glass assets</text>
   <path d="M36 51h848" stroke="#FFFFFF" stroke-opacity=".1"/>
   ${labels}
 </svg>`);

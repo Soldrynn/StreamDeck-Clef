@@ -79,7 +79,7 @@ export class BridgeSupervisor extends EventEmitter {
   #spawn(): void {
     if (this.#stopping || this.#child) return;
     const pluginRoot = dirname(dirname(fileURLToPath(import.meta.url)));
-    const executable = join(pluginRoot, "helper", "AppleMusicBridge.exe");
+    const executable = join(pluginRoot, "helper", "ClefBridge.exe");
 
     try {
       const child = spawn(executable, ["--stdio"], {

@@ -1,7 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace AppleMusicBridge;
+namespace ClefBridge;
 
 internal static class Program
 {
@@ -42,7 +42,7 @@ internal static class Program
         {
             await using var service = new BridgeService();
             service.StateChanged += Write;
-            Write(new { type = "hello", protocol = 1, version = "0.1.12" });
+            Write(new { type = "hello", protocol = 1, version = "0.1.0" });
             await service.InitializeAsync();
 
             string? line;

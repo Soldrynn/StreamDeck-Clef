@@ -1,6 +1,6 @@
 using System.Text.RegularExpressions;
 
-namespace AppleMusicBridge;
+namespace ClefBridge;
 
 internal static partial class SessionScorer
 {
@@ -92,7 +92,7 @@ internal static class ResolverSelfTests
         CoreAudioCallbackSelfTests.Run();
         MemorySafetySelfTests.Run();
         ArtworkAssociationSelfTests.Run();
-        Require(SessionScorer.ScoreMedia("AppleMusic.exe", false, false) >= 100, "Apple Music media identity");
+        Require(SessionScorer.ScoreMedia("AppleMusic.exe", false, false) >= 100, "Apple Music for Windows media identity");
         Require(SessionScorer.ScoreMedia("Spotify.exe", true, true) < 70, "unrelated current media session");
 
         foreach (var alias in new[] { "Amp Library Agent", "2-Amp Library Agent", "12 - Amp Library Agent", "3_Amp Library Agent" })

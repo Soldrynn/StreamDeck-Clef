@@ -1,6 +1,6 @@
 using System.Runtime.InteropServices;
 
-namespace AppleMusicBridge;
+namespace ClefBridge;
 
 internal static class CoreAudioCallbackSelfTests
 {

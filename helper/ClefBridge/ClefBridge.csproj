@@ -5,9 +5,9 @@
     <SupportedOSPlatformVersion>10.0.19041.0</SupportedOSPlatformVersion>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <RootNamespace>AppleMusicBridge</RootNamespace>
-    <AssemblyName>AppleMusicBridge</AssemblyName>
-    <Version>0.1.12</Version>
+    <RootNamespace>ClefBridge</RootNamespace>
+    <AssemblyName>ClefBridge</AssemblyName>
+    <Version>0.1.0</Version>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <SelfContained>true</SelfContained>
     <PublishSingleFile>true</PublishSingleFile>

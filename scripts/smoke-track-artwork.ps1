@@ -7,7 +7,7 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
-$helper = Join-Path $root 'com.davedev.apple-music.sdPlugin\helper\AppleMusicBridge.exe'
+$helper = Join-Path $root 'com.davedev.clef.sdPlugin\helper\ClefBridge.exe'
 $startInfo = [System.Diagnostics.ProcessStartInfo]::new()
 $startInfo.FileName = $helper
 $startInfo.Arguments = '--stdio'
@@ -20,7 +20,7 @@ $startInfo.RedirectStandardError = $true
 
 $process = [System.Diagnostics.Process]::new()
 $process.StartInfo = $startInfo
-if (-not $process.Start()) { throw 'Could not start AppleMusicBridge.' }
+if (-not $process.Start()) { throw 'Could not start ClefBridge.' }
 $stderrTask = $process.StandardError.ReadToEndAsync()
 $clock = [System.Diagnostics.Stopwatch]::StartNew()
 $observations = [System.Collections.Generic.List[object]]::new()
@@ -101,7 +101,7 @@ try {
 
     $initial = Send-Command 'refresh'
     if ($null -eq $initial -or [string]::IsNullOrWhiteSpace([string]$initial.media.title))
-        { throw 'No current Apple Music track was available for the artwork test.' }
+        { throw 'No current Apple Music for Windows track was available for the artwork test.' }
     $initialTitle = [string]$initial.media.title
 
     Send-Command 'next' | Out-Null

@@ -1,10 +1,10 @@
 using System.Collections.Concurrent;
 
-namespace AppleMusicBridge;
+namespace ClefBridge;
 
 /// <summary>
 /// Keeps WinRT media-session objects and Core Audio RCWs on the MTA thread that
-/// created them. Several Apple Music / Windows builds reject cross-thread media
+/// created them. Several Apple Music for Windows builds reject cross-thread media
 /// commands with RPC_E_WRONG_THREAD even though metadata reads still succeed.
 /// </summary>
 internal sealed class SingleThreadSynchronizationContext : SynchronizationContext, IDisposable

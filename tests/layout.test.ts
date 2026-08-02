@@ -17,7 +17,7 @@ interface LayoutItem {
 
 interface Layout { items: LayoutItem[] }
 
-const layoutsDirectory = join(process.cwd(), "com.davedev.apple-music.sdPlugin", "layouts");
+const layoutsDirectory = join(process.cwd(), "com.davedev.clef.sdPlugin", "layouts");
 const playback = JSON.parse(readFileSync(join(layoutsDirectory, "playback.json"), "utf8")) as Layout;
 const volume = JSON.parse(readFileSync(join(layoutsDirectory, "volume.json"), "utf8")) as Layout;
 

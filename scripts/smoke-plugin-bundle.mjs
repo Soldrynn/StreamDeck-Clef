@@ -4,9 +4,9 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { WebSocketServer } from "ws";
 
-const pluginUuid = "com.davedev.apple-music";
-const bundle = join(process.cwd(), "com.davedev.apple-music.sdPlugin", "bin", "plugin.js");
-const pluginRoot = join(process.cwd(), "com.davedev.apple-music.sdPlugin");
+const pluginUuid = "com.davedev.clef";
+const bundle = join(process.cwd(), "com.davedev.clef.sdPlugin", "bin", "plugin.js");
+const pluginRoot = join(process.cwd(), "com.davedev.clef.sdPlugin");
 const manifest = JSON.parse(readFileSync(join(pluginRoot, "manifest.json"), "utf8"));
 let output = "";
 const server = new WebSocketServer({ host: "127.0.0.1", port: 0 });

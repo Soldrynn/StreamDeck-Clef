@@ -1,6 +1,6 @@
 {
   "$schema": "https://schemas.elgato.com/streamdeck/plugins/layout.json",
-  "id": "com.davedev.apple-music.playback.glass",
+  "id": "com.davedev.clef.playback.glass",
   "items": [
     {
       "key": "art",
@@ -24,7 +24,7 @@
       "key": "track",
       "type": "text",
       "rect": [69, 25, 123, 22],
-      "value": "Apple Music",
+      "value": "Clef",
       "alignment": "left",
       "color": "#FFFFFF",
       "font": { "size": 16, "weight": 700 },

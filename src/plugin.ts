@@ -88,7 +88,7 @@ function renderPlaybackTargets(): void {
       queueFeedback(id, target, {
         art: safeArtwork(media.artworkDataUri) || "assets/placeholders/album.svg",
         status: "RECONNECTING",
-        track: media.title || "Apple Music",
+        track: media.title || "Clef",
         artist: media.artist || "Restoring connection…",
         progress: duration > 0 ? Math.round(position / duration * 1000) : 0,
         time: media.available ? `${formatTime(position)}  /  ${formatTime(media.durationMs)}` : "--:--  /  --:--"
@@ -99,8 +99,8 @@ function renderPlaybackTargets(): void {
       queueFeedback(id, target, {
         art: "assets/placeholders/album.svg",
         status: "UNAVAILABLE",
-        track: "Apple Music",
-        artist: "Open Apple Music to connect",
+        track: "Clef",
+        artist: "Open Apple Music for Windows to connect",
         progress: 0,
         time: "--:--  /  --:--"
       });
@@ -114,7 +114,7 @@ function renderPlaybackTargets(): void {
         art: "assets/placeholders/album.svg",
         status: "READY",
         track: "Choose a song",
-        artist: "Apple Music",
+        artist: "Apple Music for Windows",
         progress: 0,
         time: "--:--  /  --:--"
       });
@@ -132,7 +132,7 @@ function renderPlaybackTargets(): void {
     const elapsed = Date.now() - marquee.startedAt;
     const feedback: Record<string, string | number | object> = {
       status: media.playbackStatus === "playing" ? "NOW PLAYING" : media.playbackStatus === "paused" ? "PAUSED" : "READY",
-      track: marqueeText(media.title || "Apple Music", 16, elapsed),
+      track: marqueeText(media.title || "Clef", 16, elapsed),
       artist: media.artist || media.album || "",
       progress: duration > 0 ? Math.round(position / duration * 1000) : 0,
       time: `${formatTime(position)}  /  ${formatTime(media.durationMs)}`
@@ -204,7 +204,7 @@ function clearOptimisticVolume(): void {
   optimisticVolumeTimer = undefined;
 }
 
-@action({ UUID: "com.davedev.apple-music.playback" })
+@action({ UUID: "com.davedev.clef.playback" })
 class PlaybackAction extends SingletonAction<PlaybackSettings> {
   readonly #trackCoalescers = new Map<string, TickCoalescer>();
 
@@ -244,7 +244,7 @@ class PlaybackAction extends SingletonAction<PlaybackSettings> {
   }
 }
 
-@action({ UUID: "com.davedev.apple-music.volume" })
+@action({ UUID: "com.davedev.clef.volume" })
 class VolumeAction extends SingletonAction<VolumeSettings> {
   readonly #coalescers = new Map<string, TickCoalescer>();
   readonly #settings = new Map<string, Required<VolumeSettings>>();
@@ -274,9 +274,9 @@ class VolumeAction extends SingletonAction<VolumeSettings> {
     this.#settings.set(id, settings);
     if (ev.action.isDial()) {
       void ev.action.setTriggerDescription({
-        push: "Mute / Unmute Apple Music",
-        rotate: `Adjust Apple Music volume ±${settings.volumeStepPercent}%`,
-        touch: "Mute / Unmute Apple Music"
+        push: "Mute / Unmute Apple Music for Windows",
+        rotate: `Adjust Apple Music for Windows volume ±${settings.volumeStepPercent}%`,
+        touch: "Mute / Unmute Apple Music for Windows"
       });
     }
   }

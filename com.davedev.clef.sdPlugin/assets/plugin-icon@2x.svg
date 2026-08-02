@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 72 72">
+  <defs>
+    <linearGradient id="surface" x1="9" y1="6" x2="63" y2="68" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#4A4D52"/><stop offset=".48" stop-color="#25272B"/><stop offset="1" stop-color="#111214"/>
+    </linearGradient>
+    <radialGradient id="shine" cx="0" cy="0" r="1" gradientTransform="translate(26 17) rotate(53) scale(45)">
+      <stop stop-color="#FFFFFF" stop-opacity=".2"/><stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="rim" x1="11" y1="7" x2="61" y2="65" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFFFFF" stop-opacity=".66"/><stop offset=".48" stop-color="#FFFFFF" stop-opacity=".14"/><stop offset="1" stop-color="#FFFFFF" stop-opacity=".36"/>
+    </linearGradient>
+  </defs>
+  <rect x="1" y="1" width="70" height="70" rx="20" fill="#0A0B0C"/>
+  <rect x="2.5" y="2.5" width="67" height="67" rx="18.5" fill="url(#surface)"/>
+  <rect x="2.5" y="2.5" width="67" height="67" rx="18.5" fill="url(#shine)"/>
+  <rect x="4.5" y="4.5" width="63" height="63" rx="17" fill="none" stroke="url(#rim)" stroke-width="1"/>
+  <path d="M12 19C20 8 47 5 60 17" fill="none" stroke="#FFFFFF" stroke-width="1.15" stroke-linecap="round" opacity=".2"/>
+  <g fill="none" stroke="#FFFFFF" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M36.8 13.5c4.4 9.4-11.7 17.5-13.8 29.5-2.1 12.1 13.6 17.2 20 8.7 5.6-7.4-1.8-17.4-10.1-11.4-6.2 4.5-2.8 13.8 4.6 12.2 7.9-1.7 6.2-15.5-2.7-14.5-9.9 1.1-11.2 17.6-1.4 22.2" stroke-width="2.9"/>
+    <path d="M35.8 13.6v44.7" stroke-width="2.9"/>
+  </g>
+  <g fill="#FFFFFF" opacity=".82">
+    <rect x="48" y="25" width="2.8" height="11" rx="1.4"/><rect x="53" y="21" width="2.8" height="15" rx="1.4"/><rect x="58" y="27" width="2.8" height="9" rx="1.4"/>
+  </g>
+</svg>

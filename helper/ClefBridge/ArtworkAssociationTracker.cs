@@ -1,4 +1,4 @@
-namespace AppleMusicBridge;
+namespace ClefBridge;
 
 /// <summary>
 /// Prevents a thumbnail hash already committed to one album/track group from

@@ -9,7 +9,7 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
-$helper = Join-Path $root 'com.davedev.apple-music.sdPlugin\helper\AppleMusicBridge.exe'
+$helper = Join-Path $root 'com.davedev.clef.sdPlugin\helper\ClefBridge.exe'
 $startInfo = [System.Diagnostics.ProcessStartInfo]::new()
 $startInfo.FileName = $helper
 $startInfo.Arguments = '--stdio'
@@ -22,7 +22,7 @@ $startInfo.RedirectStandardError = $true
 
 $process = [System.Diagnostics.Process]::new()
 $process.StartInfo = $startInfo
-if (-not $process.Start()) { throw 'Could not start AppleMusicBridge.' }
+if (-not $process.Start()) { throw 'Could not start ClefBridge.' }
 $stdoutTask = $process.StandardOutput.ReadToEndAsync()
 $stderrTask = $process.StandardError.ReadToEndAsync()
 
@@ -57,7 +57,7 @@ function Wait-ForQuiescence {
         $previousCpu = $currentCpu
         if ($stable -ge 3) { return }
     }
-    throw 'AppleMusicBridge did not become idle within 30 seconds.'
+    throw 'ClefBridge did not become idle within 30 seconds.'
 }
 
 try {
@@ -75,7 +75,7 @@ try {
     $batchTwo = Get-Snapshot 'batch-two'
 
     $process.StandardInput.Close()
-    if (-not $process.WaitForExit(10000)) { throw 'AppleMusicBridge did not exit after stdin closed.' }
+    if (-not $process.WaitForExit(10000)) { throw 'ClefBridge did not exit after stdin closed.' }
     $stdout = $stdoutTask.GetAwaiter().GetResult()
     $stderr = $stderrTask.GetAwaiter().GetResult()
     $acknowledgements = ([regex]::Matches($stdout, '"type":"ack"')).Count

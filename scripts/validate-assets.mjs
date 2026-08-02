@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 import sharp from "sharp";
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
-const assets = join(root, "com.davedev.apple-music.sdPlugin", "assets");
+const assets = join(root, "com.davedev.clef.sdPlugin", "assets");
 const specifications = [
   ["plugin-icon.svg", 256, 256],
   ["plugin-icon@2x.svg", 512, 512],

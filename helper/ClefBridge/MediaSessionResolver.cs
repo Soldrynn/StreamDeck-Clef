@@ -5,7 +5,7 @@ using Windows.Graphics.Imaging;
 using Windows.Media.Control;
 using Windows.Storage.Streams;
 
-namespace AppleMusicBridge;
+namespace ClefBridge;
 
 internal sealed class MediaSessionResolver : IDisposable
 {
@@ -155,7 +155,7 @@ internal sealed class MediaSessionResolver : IDisposable
         }
         catch { }
         if (!accepted) accepted = await session.TryTogglePlayPauseAsync();
-        if (!accepted) throw new InvalidOperationException("Apple Music rejected play/pause.");
+        if (!accepted) throw new InvalidOperationException("Apple Music for Windows rejected play/pause.");
         await Task.Delay(60);
         await RefreshAsync();
     }
@@ -171,15 +171,15 @@ internal sealed class MediaSessionResolver : IDisposable
             var accepted = next
                 ? await session.TrySkipNextAsync()
                 : await session.TrySkipPreviousAsync();
-            if (!accepted) throw new InvalidOperationException(next ? "Apple Music rejected next track." : "Apple Music rejected previous track.");
+            if (!accepted) throw new InvalidOperationException(next ? "Apple Music for Windows rejected next track." : "Apple Music for Windows rejected previous track.");
             if (!next && !await WaitForIdentityChangeAsync(before, TimeSpan.FromMilliseconds(400)))
             {
-                // Apple Music treats the first Previous request as "restart this
+                // Apple Music for Windows treats the first Previous request as "restart this
                 // song" on some builds. A second direct transport request after
                 // that restart provides the previous-track behavior promised by
                 // the encoder without relying on unsupported seeking.
                 if (!await session.TrySkipPreviousAsync())
-                    throw new InvalidOperationException("Apple Music rejected previous track.");
+                    throw new InvalidOperationException("Apple Music for Windows rejected previous track.");
             }
             if (i + 1 < count) await Task.Delay(80);
         }
@@ -191,7 +191,7 @@ internal sealed class MediaSessionResolver : IDisposable
     private async Task<GlobalSystemMediaTransportControlsSession> RequireSessionAsync()
     {
         await RefreshAsync();
-        return _selected ?? throw new InvalidOperationException("Apple Music media session is unavailable.");
+        return _selected ?? throw new InvalidOperationException("Apple Music for Windows media session is unavailable.");
     }
 
     private void Bind(GlobalSystemMediaTransportControlsSession? session)
@@ -517,7 +517,7 @@ internal sealed class MediaSessionResolver : IDisposable
                 TimeSpan.FromMilliseconds(450));
             await Task.Delay(140);
 
-            // Read while paused, rather than only after resuming. Apple Music
+            // Read while paused, rather than only after resuming. Apple Music for Windows
             // refreshes its GSMTC thumbnail projection during this state change
             // on builds that otherwise hold the previous/null thumbnail for tens
             // of seconds after a transport skip.

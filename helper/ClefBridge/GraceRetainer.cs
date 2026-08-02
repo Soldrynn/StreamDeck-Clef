@@ -1,4 +1,4 @@
-namespace AppleMusicBridge;
+namespace ClefBridge;
 
 /// <summary>
 /// Keeps callback owners alive briefly after native unregistration so an
