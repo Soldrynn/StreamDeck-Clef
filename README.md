@@ -25,7 +25,7 @@ Clef provides the following features:
 - Album artwork with protection against delayed covers appearing on the wrong
   track.
 - Independent settings for each Volume Controls action.
-- A transparent, grayscale liquid-glass design for the Stream Deck + touch
+- A transparent, modern grayscale design for the Stream Deck + touch
   strip.
 
 ## Requirements
