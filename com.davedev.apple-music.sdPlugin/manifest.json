@@ -1,0 +1,82 @@
+{
+  "$schema": "https://schemas.elgato.com/streamdeck/plugins/manifest.json",
+  "Actions": [
+    {
+      "Controllers": [
+        "Encoder"
+      ],
+      "Encoder": {
+        "Icon": "assets/actions/playback",
+        "background": "assets/backgrounds/glass",
+        "layout": "layouts/playback.json",
+        "StackColor": "#555555",
+        "TriggerDescription": {
+          "Push": "Play / Pause",
+          "Rotate": "Previous / Next track",
+          "Touch": "Play / Pause"
+        }
+      },
+      "Icon": "assets/actions/playback-list",
+      "Name": "Playback Controls",
+      "States": [
+        {
+          "Image": "assets/actions/playback"
+        }
+      ],
+      "UUID": "com.davedev.apple-music.playback"
+    },
+    {
+      "Controllers": [
+        "Encoder"
+      ],
+      "Encoder": {
+        "Icon": "assets/actions/volume",
+        "background": "assets/backgrounds/glass",
+        "layout": "layouts/volume.json",
+        "StackColor": "#555555",
+        "TriggerDescription": {
+          "Push": "Mute / Unmute Apple Music",
+          "Rotate": "Adjust Apple Music volume",
+          "Touch": "Mute / Unmute Apple Music"
+        }
+      },
+      "Icon": "assets/actions/volume-list",
+      "Name": "Volume Controls",
+      "PropertyInspectorPath": "ui/volume.html",
+      "States": [
+        {
+          "Image": "assets/actions/volume"
+        }
+      ],
+      "UUID": "com.davedev.apple-music.volume"
+    }
+  ],
+  "ApplicationsToMonitor": {
+    "windows": [
+      "AppleMusic.exe",
+      "AmpLibraryAgent.exe"
+    ]
+  },
+  "Author": "DaveDev",
+  "Category": "Apple Music",
+  "CategoryIcon": "assets/category",
+  "CodePath": "bin/plugin.js",
+  "Description": "Control Apple Music playback and app volume with Stream Deck + dials on Windows 11.",
+  "Icon": "assets/plugin-icon",
+  "Name": "Apple Music",
+  "Nodejs": {
+    "Version": "24"
+  },
+  "OS": [
+    {
+      "Platform": "windows",
+      "MinimumVersion": "10"
+    }
+  ],
+  "SDKVersion": 3,
+  "Software": {
+    "MinimumVersion": "7.1"
+  },
+  "UUID": "com.davedev.apple-music",
+  "Version": "0.1.12.0"
+}

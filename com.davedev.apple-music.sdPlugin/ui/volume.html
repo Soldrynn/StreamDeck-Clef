@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Volume settings</title>
+  <link rel="stylesheet" href="property-inspector.css">
+</head>
+<body data-action="volume">
+  <section class="panel">
+    <h1>Volume Controls</h1>
+    <div class="field">
+      <label for="step">Rotation Controls <span class="value" data-value-for="volumeStepPercent"></span></label>
+      <p class="description">How much should the volume change when you rotate the knob left/right?</p>
+      <input id="step" type="range" min="1" max="10" step="1" data-setting="volumeStepPercent" data-suffix="%">
+    </div>
+  </section>
+  <script src="property-inspector.js"></script>
+</body>
+</html>

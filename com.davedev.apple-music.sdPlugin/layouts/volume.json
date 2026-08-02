@@ -1,0 +1,59 @@
+{
+  "$schema": "https://schemas.elgato.com/streamdeck/plugins/layout.json",
+  "id": "com.davedev.apple-music.volume.glass",
+  "items": [
+    {
+      "key": "glyph",
+      "type": "pixmap",
+      "rect": [7, 8, 54, 54],
+      "value": "assets/placeholders/volume.svg",
+      "zOrder": 1
+    },
+    {
+      "key": "status",
+      "type": "text",
+      "rect": [69, 8, 123, 17],
+      "value": "CONNECTING",
+      "alignment": "left",
+      "color": "#C8C8C8",
+      "font": { "size": 10, "weight": 700 },
+      "text-overflow": "ellipsis",
+      "zOrder": 1
+    },
+    {
+      "key": "value",
+      "type": "text",
+      "rect": [69, 25, 123, 22],
+      "value": "--%",
+      "alignment": "left",
+      "color": "#FFFFFF",
+      "font": { "size": 16, "weight": 700 },
+      "text-overflow": "ellipsis",
+      "zOrder": 1
+    },
+    {
+      "key": "detail",
+      "type": "text",
+      "rect": [69, 48, 123, 15],
+      "value": "Waiting for audio",
+      "alignment": "left",
+      "color": "#D2D2D2",
+      "font": { "size": 10, "weight": 500 },
+      "text-overflow": "ellipsis",
+      "zOrder": 1
+    },
+    {
+      "key": "volume",
+      "type": "bar",
+      "rect": [7, 73, 186, 9],
+      "value": 0,
+      "range": { "min": 0, "max": 100 },
+      "bar_bg_c": "#292929",
+      "bar_fill_c": "0:#9A9A9A,1:#E2E2E2",
+      "bar_border_c": "#5E5E5E",
+      "border_w": 1,
+      "subtype": 4,
+      "zOrder": 1
+    }
+  ]
+}

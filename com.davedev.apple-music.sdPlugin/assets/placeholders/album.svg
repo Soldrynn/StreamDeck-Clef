@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="108" height="108" viewBox="0 0 108 108">
+  <defs>
+    <linearGradient id="surface" x1="17" y1="11" x2="91" y2="99" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#4A4D51"/>
+      <stop offset=".52" stop-color="#282A2D"/>
+      <stop offset="1" stop-color="#101113"/>
+    </linearGradient>
+    <radialGradient id="shine" cx="0" cy="0" r="1" gradientTransform="translate(42 29) rotate(49) scale(74)">
+      <stop stop-color="#FFFFFF" stop-opacity=".2"/>
+      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="rim" x1="14" y1="10" x2="96" y2="101" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFFFFF" stop-opacity=".64"/>
+      <stop offset=".43" stop-color="#FFFFFF" stop-opacity=".13"/>
+      <stop offset="1" stop-color="#FFFFFF" stop-opacity=".35"/>
+    </linearGradient>
+  </defs>
+  <rect x="2" y="3" width="104" height="103" rx="25" fill="#090A0B"/>
+  <rect x="3" y="2" width="102" height="102" rx="24" fill="url(#surface)"/>
+  <rect x="3" y="2" width="102" height="102" rx="24" fill="url(#shine)"/>
+  <rect x="5" y="4" width="98" height="98" rx="22" fill="none" stroke="url(#rim)" stroke-width="1.5"/>
+  <path d="M18 30c11-19 49-24 73-5" fill="none" stroke="#FFFFFF" stroke-width="1.6" stroke-linecap="round" opacity=".2"/>
+  <circle cx="54" cy="55" r="27" fill="#FFFFFF" opacity=".055"/>
+  <circle cx="54" cy="55" r="26" fill="none" stroke="#FFFFFF" stroke-width="1.5" opacity=".4"/>
+  <circle cx="54" cy="55" r="18" fill="none" stroke="#FFFFFF" stroke-width="1.3" opacity=".16"/>
+  <circle cx="54" cy="55" r="8" fill="#FFFFFF" opacity=".85"/>
+  <circle cx="54" cy="55" r="2.5" fill="#25272A"/>
+  <path d="M37 38a24 24 0 0 1 25-6" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" opacity=".45"/>
+</svg>
