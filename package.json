@@ -8,12 +8,12 @@
   "author": "DaveDev",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Soldrynn/StreamDeck-WindowsAppleMusic.git"
+    "url": "git+https://github.com/Soldrynn/StreamDeck-Clef.git"
   },
   "bugs": {
-    "url": "https://github.com/Soldrynn/StreamDeck-WindowsAppleMusic/issues"
+    "url": "https://github.com/Soldrynn/StreamDeck-Clef/issues"
   },
-  "homepage": "https://github.com/Soldrynn/StreamDeck-WindowsAppleMusic#readme",
+  "homepage": "https://github.com/Soldrynn/StreamDeck-Clef#readme",
   "keywords": [
     "clef",
     "music-controls",

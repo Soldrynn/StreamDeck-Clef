@@ -16,8 +16,12 @@ const publicReadme = await read("README.md");
 const license = await read("LICENSE");
 const notices = await read("THIRD_PARTY_NOTICES.md");
 const helper = await stat(join(root, "com.davedev.clef.sdPlugin", "helper", "ClefBridge.exe"));
+const repositoryUrl = "https://github.com/Soldrynn/StreamDeck-Clef";
 
 assert.equal(packageJson.license, "Apache-2.0", "package license");
+assert.equal(packageJson.repository?.url, `git+${repositoryUrl}.git`, "package repository URL");
+assert.equal(packageJson.bugs?.url, `${repositoryUrl}/issues`, "package issue URL");
+assert.equal(packageJson.homepage, `${repositoryUrl}#readme`, "package homepage URL");
 assert.equal(manifest.Version, `${packageJson.version}.0`, "manifest version");
 assert.match(project, new RegExp(`<Version>${packageJson.version.replaceAll(".", "\\.")}</Version>`), "helper project version");
 assert.match(program, new RegExp(`version = "${packageJson.version.replaceAll(".", "\\.")}"`), "helper protocol version");
