@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { readFile, stat } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -15,6 +15,7 @@ const pluginReadme = await read("com.davedev.clef.sdPlugin", "README.txt");
 const publicReadme = await read("README.md");
 const license = await read("LICENSE");
 const notices = await read("THIRD_PARTY_NOTICES.md");
+const helper = await stat(join(root, "com.davedev.clef.sdPlugin", "helper", "ClefBridge.exe"));
 
 assert.equal(packageJson.license, "Apache-2.0", "package license");
 assert.equal(manifest.Version, `${packageJson.version}.0`, "manifest version");
@@ -23,6 +24,7 @@ assert.match(program, new RegExp(`version = "${packageJson.version.replaceAll(".
 assert.match(pluginReadme, new RegExp(`^Clef ${packageJson.version}$`, "m"), "plugin README version");
 assert.match(publicReadme, /^# Clef for Stream Deck \+$/m, "public README title");
 assert.match(license, /^\s*Apache License\s*$/m, "Apache license text");
+assert(helper.isFile() && helper.size > 1_000_000, "self-contained helper executable");
 
 for (const name of ["LICENSE", "NOTICE", "THIRD_PARTY_NOTICES.md"]) {
   const source = await read(name);
