@@ -42,7 +42,7 @@ internal static class Program
         {
             await using var service = new BridgeService();
             service.StateChanged += Write;
-            Write(new { type = "hello", protocol = 1, version = "0.1.0" });
+            Write(new { type = "hello", protocol = 1, version = "0.1.0.1" });
             await service.InitializeAsync();
 
             string? line;

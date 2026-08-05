@@ -17,7 +17,7 @@ export interface AudioState {
   available: boolean;
   volumePercent?: number;
   muted?: boolean;
-  bindingKind?: "apple-music-process" | "amp-agent-process" | "amp-agent-alias";
+  bindingKind?: "amp-agent-process" | "amp-agent-alias";
 }
 
 export interface BridgeState {

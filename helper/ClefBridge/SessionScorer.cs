@@ -22,45 +22,43 @@ internal static partial class SessionScorer
         var path = Normalize(candidate.ExecutablePath);
         var identifier = Normalize(candidate.SessionIdentifier);
         var display = StripNumericPrefix(candidate.DisplayName);
+        var ampProcessName = process is "amplibraryagent" or "amplibraryagentexe";
+        var ampPath = path.Contains("amplibraryagent");
+        var ampIdentifier = identifier.Contains("amplibraryagent");
+        var ampAlias = display == "amplibraryagent";
+        var hasAmpEvidence = ampProcessName || ampPath || ampIdentifier || ampAlias;
         var score = 0;
         string? kind = null;
 
-        if (process is "applemusic" or "applemusicexe")
+        // AppleMusic.exe owns the media session, but current Apple Music for
+        // Windows builds send audio through AmpLibraryAgent.exe. Treat the
+        // frontend/package identity only as corroborating evidence: binding to
+        // it makes volume appear connected while changing the wrong session.
+        if (ampProcessName)
         {
-            score += 150;
-            kind = "apple-music-process";
-        }
-        else if (process is "amplibraryagent" or "amplibraryagentexe")
-        {
-            score += 135;
+            score += 160;
             kind = "amp-agent-process";
         }
-
-        if (path.Contains("applemusicexe") || identifier.Contains("applemusicexe"))
+        if (ampPath)
+        {
+            score += 120;
+            kind = "amp-agent-process";
+        }
+        if (ampIdentifier)
+        {
+            score += 100;
+            kind = "amp-agent-process";
+        }
+        if (ampAlias)
         {
             score += 90;
-            kind ??= "apple-music-process";
-        }
-        if (path.Contains("amplibraryagentexe") || identifier.Contains("amplibraryagentexe"))
-        {
-            score += 85;
-            kind ??= "amp-agent-process";
-        }
-        if (path.Contains("appleincapplemusic") || identifier.Contains("appleincapplemusic")) score += 25;
-
-        if (display == "amplibraryagent")
-        {
-            score += 75;
             kind ??= "amp-agent-alias";
         }
-        else if (display.Contains("applemusic"))
-        {
-            score += 65;
-            kind ??= "apple-music-process";
-        }
+        if (hasAmpEvidence && (path.Contains("appleincapplemusic") || identifier.Contains("appleincapplemusic")))
+            score += 15;
 
-        if (candidate.State == AudioSessionState.Active) score += 20;
-        if (candidate.State == AudioSessionState.Expired) score -= 100;
+        if (candidate.State == AudioSessionState.Active) score += 25;
+        if (candidate.State == AudioSessionState.Expired) score -= 200;
         return (score, kind);
     }
 
@@ -104,6 +102,16 @@ internal static class ResolverSelfTests
 
         var processResult = SessionScorer.ScoreAudio(new("AmpLibraryAgent", @"C:\\Program Files\\WindowsApps\\AppleInc.AppleMusic_1.0\\AmpLibraryAgent.exe", null, "7-Amp Library Agent", AudioSessionState.Inactive));
         Require(processResult.Score > 200, "stable process/path evidence");
+
+        var frontEndResult = SessionScorer.ScoreAudio(new(
+            "AppleMusic",
+            @"C:\\Program Files\\WindowsApps\\AppleInc.AppleMusic_1.0\\AppleMusic.exe",
+            "AppleInc.AppleMusic_1.0!AppleMusic.exe",
+            "Apple Music",
+            AudioSessionState.Active));
+        Require(!SessionScorer.IsAcceptableAudioScore(frontEndResult.Score), "Apple Music frontend is not an audio target");
+        Require(frontEndResult.BindingKind is null, "Apple Music frontend has no audio binding kind");
+
         Require(!SessionScorer.IsAcceptableAudioScore(SessionScorer.ScoreAudio(new("chrome", null, null, "YouTube", AudioSessionState.Active)).Score), "unrelated audio session");
     }
 
