@@ -10,6 +10,7 @@ const packageJson = JSON.parse(await read("package.json"));
 const packageLock = JSON.parse(await read("package-lock.json"));
 const manifest = JSON.parse(await read("com.davedev.clef.sdPlugin", "manifest.json"));
 const releaseVersion = manifest.Version;
+const marketingVersion = `v${packageJson.version.split(".").slice(0, 2).join(".")}`;
 const project = await read("helper", "ClefBridge", "ClefBridge.csproj");
 const program = await read("helper", "ClefBridge", "Program.cs");
 const pluginReadme = await read("com.davedev.clef.sdPlugin", "README.txt");
@@ -26,7 +27,7 @@ assert.equal(packageJson.homepage, `${repositoryUrl}#readme`, "package homepage 
 assert.match(releaseVersion, new RegExp(`^${packageJson.version.replaceAll(".", "\\.")}\\.\\d+$`), "manifest version");
 assert.match(project, new RegExp(`<Version>${releaseVersion.replaceAll(".", "\\.")}</Version>`), "helper project version");
 assert.match(program, new RegExp(`version = "${releaseVersion.replaceAll(".", "\\.")}"`), "helper protocol version");
-assert.match(pluginReadme, new RegExp(`^Clef ${releaseVersion}$`, "m"), "plugin README version");
+assert.match(pluginReadme, new RegExp(`^Clef ${marketingVersion.replaceAll(".", "\\.")}$`, "m"), "plugin README version");
 assert.match(publicReadme, /^# Clef for Stream Deck \+$/m, "public README title");
 assert.match(license, /^\s*Apache License\s*$/m, "Apache license text");
 assert(helper.isFile() && helper.size > 1_000_000, "self-contained helper executable");

@@ -1,4 +1,4 @@
-Clef 0.1.0.1
+Clef v1.0
 
 Windows 11 x64 | Stream Deck 7.1+ | Stream Deck +
 
