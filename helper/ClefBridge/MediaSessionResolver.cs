@@ -12,6 +12,8 @@ internal sealed class MediaSessionResolver : IDisposable
     private static readonly TimeSpan ArtworkRetryDuration = TimeSpan.FromSeconds(60);
     private static readonly TimeSpan RapidProbeDuration = TimeSpan.FromSeconds(8);
     private static readonly TimeSpan PlaybackArtworkPulseDelay = TimeSpan.FromMilliseconds(1250);
+    private static readonly TimeSpan PlaybackArtworkPulseRetryDelay = TimeSpan.FromMilliseconds(750);
+    private const int MaximumPlaybackArtworkPulseAttempts = 4;
     private static readonly TimeSpan[] ForcedProjectionOffsets =
     [
         TimeSpan.FromMilliseconds(750),
@@ -54,6 +56,8 @@ internal sealed class MediaSessionResolver : IDisposable
     private bool _armPlaybackArtworkPulseOnIdentityChange;
     private MediaIdentity? _pendingPlaybackArtworkPulseIdentity;
     private bool _playbackArtworkPulseIssued;
+    private int _playbackArtworkPulseAttempts;
+    private DateTimeOffset _nextPlaybackArtworkPulseAt = DateTimeOffset.MaxValue;
     private MediaIdentity? _expectedOldIdentity;
     private DateTimeOffset _expectedIdentityChangeUntil = DateTimeOffset.MinValue;
     private long _mediaPropertiesGeneration;
@@ -210,6 +214,7 @@ internal sealed class MediaSessionResolver : IDisposable
         _artworkRetryUntil = DateTimeOffset.UtcNow + ArtworkRetryDuration;
         _pendingArtwork = null;
         _expectedOldIdentity = null;
+        CancelPlaybackArtworkPulse();
         _title = _artist = _album = _artworkDataUri = _artworkKey = null;
         if (_selected is not null)
         {
@@ -386,10 +391,20 @@ internal sealed class MediaSessionResolver : IDisposable
             while (!_disposed)
             {
                 var request = _pendingArtwork;
-                _pendingArtwork = null;
                 if (request is null) return;
-                if (!MatchesCurrentIdentity(request.Identity) || !_artworkDirty) continue;
-                if (DateTimeOffset.UtcNow < _artworkFetchNotBefore) continue;
+                if (!MatchesCurrentIdentity(request.Identity) || !_artworkDirty)
+                {
+                    if (ReferenceEquals(_pendingArtwork, request)) _pendingArtwork = null;
+                    continue;
+                }
+                var delay = _artworkFetchNotBefore - DateTimeOffset.UtcNow;
+                if (delay > TimeSpan.Zero)
+                {
+                    await Task.Delay(delay);
+                    continue;
+                }
+                if (!ReferenceEquals(_pendingArtwork, request)) continue;
+                _pendingArtwork = null;
 
                 try
                 {
@@ -455,6 +470,7 @@ internal sealed class MediaSessionResolver : IDisposable
         _pendingArtwork = null;
         _artworkDirty = true;
         _artworkRetryUntil = DateTimeOffset.UtcNow + ArtworkRetryDuration;
+        CancelPlaybackArtworkPulse();
         ScheduleForcedArtworkFetch(DateTimeOffset.UtcNow, hadPreviousTrack: true);
     }
 
@@ -479,6 +495,8 @@ internal sealed class MediaSessionResolver : IDisposable
         {
             _pendingPlaybackArtworkPulseIdentity = identity;
             _playbackArtworkPulseIssued = false;
+            _playbackArtworkPulseAttempts = 0;
+            _nextPlaybackArtworkPulseAt = DateTimeOffset.UtcNow + PlaybackArtworkPulseDelay;
         }
     }
 
@@ -488,7 +506,10 @@ internal sealed class MediaSessionResolver : IDisposable
         lock (_requestGate) expectedIdentity = _pendingPlaybackArtworkPulseIdentity;
         if (expectedIdentity is null || !_artworkDirty || _artworkDataUri is not null ||
             !MatchesCurrentIdentity(expectedIdentity))
+        {
+            if (expectedIdentity is not null) FinishPlaybackArtworkPulseAttempt(expectedIdentity, retry: false);
             return;
+        }
 
         var artworkTask = _artworkLoadTask;
         if (artworkTask is not null)
@@ -497,20 +518,39 @@ internal sealed class MediaSessionResolver : IDisposable
         }
         if (!_artworkDirty || _artworkDataUri is not null ||
             !MatchesCurrentIdentity(expectedIdentity))
+        {
+            FinishPlaybackArtworkPulseAttempt(expectedIdentity, retry: false);
             return;
+        }
 
         var session = _selected;
-        if (session is null) return;
+        if (session is null)
+        {
+            FinishPlaybackArtworkPulseAttempt(expectedIdentity, retry: true);
+            return;
+        }
         GlobalSystemMediaTransportControlsSessionPlaybackStatus status;
         try { status = session.GetPlaybackInfo().PlaybackStatus; }
-        catch { return; }
-        if (status != GlobalSystemMediaTransportControlsSessionPlaybackStatus.Playing) return;
+        catch
+        {
+            FinishPlaybackArtworkPulseAttempt(expectedIdentity, retry: true);
+            return;
+        }
+        if (status != GlobalSystemMediaTransportControlsSessionPlaybackStatus.Playing)
+        {
+            FinishPlaybackArtworkPulseAttempt(expectedIdentity, retry: true);
+            return;
+        }
 
         var paused = false;
         try
         {
             paused = await session.TryPauseAsync();
-            if (!paused) return;
+            if (!paused)
+            {
+                FinishPlaybackArtworkPulseAttempt(expectedIdentity, retry: true);
+                return;
+            }
             await WaitForPlaybackStatusAsync(
                 session,
                 GlobalSystemMediaTransportControlsSessionPlaybackStatus.Paused,
@@ -534,6 +574,7 @@ internal sealed class MediaSessionResolver : IDisposable
         catch (Exception ex)
         {
             Console.Error.WriteLine($"Artwork playback refresh pause: {ex.Message}");
+            FinishPlaybackArtworkPulseAttempt(expectedIdentity, retry: true);
             return;
         }
         finally
@@ -567,8 +608,43 @@ internal sealed class MediaSessionResolver : IDisposable
             _artworkDirty = true;
             _artworkRetryUntil = DateTimeOffset.UtcNow + ArtworkRetryDuration;
         }
-        await Task.Delay(120);
+        // The association guard needs a second observation at least 350 ms
+        // later when Windows does not send another media-properties event.
+        await Task.Delay(380);
         await UpdateSnapshotAsync();
+        FinishPlaybackArtworkPulseAttempt(
+            expectedIdentity,
+            retry: _artworkDataUri is null && _artworkDirty && MatchesCurrentIdentity(expectedIdentity));
+    }
+
+    private void FinishPlaybackArtworkPulseAttempt(MediaIdentity identity, bool retry)
+    {
+        lock (_requestGate)
+        {
+            if (_pendingPlaybackArtworkPulseIdentity != identity) return;
+            if (retry && _playbackArtworkPulseAttempts < MaximumPlaybackArtworkPulseAttempts &&
+                DateTimeOffset.UtcNow < _rapidProbeUntil)
+            {
+                _playbackArtworkPulseIssued = false;
+                _nextPlaybackArtworkPulseAt = DateTimeOffset.UtcNow + PlaybackArtworkPulseRetryDelay;
+                return;
+            }
+            _pendingPlaybackArtworkPulseIdentity = null;
+            _playbackArtworkPulseIssued = false;
+            _playbackArtworkPulseAttempts = 0;
+            _nextPlaybackArtworkPulseAt = DateTimeOffset.MaxValue;
+        }
+    }
+
+    private void CancelPlaybackArtworkPulse()
+    {
+        lock (_requestGate)
+        {
+            _pendingPlaybackArtworkPulseIdentity = null;
+            _playbackArtworkPulseIssued = false;
+            _playbackArtworkPulseAttempts = 0;
+            _nextPlaybackArtworkPulseAt = DateTimeOffset.MaxValue;
+        }
     }
 
     private static async Task WaitForPlaybackStatusAsync(
@@ -750,6 +826,8 @@ internal sealed class MediaSessionResolver : IDisposable
             _forcedProjectionStage = ForcedProjectionOffsets.Length;
             _pendingPlaybackArtworkPulseIdentity = null;
             _playbackArtworkPulseIssued = false;
+            _playbackArtworkPulseAttempts = 0;
+            _nextPlaybackArtworkPulseAt = DateTimeOffset.MaxValue;
             _rapidProbeUntil = DateTimeOffset.MinValue;
             try { _rapidProbeTimer.Change(Timeout.Infinite, Timeout.Infinite); } catch { }
         }
@@ -770,9 +848,11 @@ internal sealed class MediaSessionResolver : IDisposable
                 refreshProjection = true;
             }
             if (!_playbackArtworkPulseIssued && _pendingPlaybackArtworkPulseIdentity is not null &&
-                now >= _identityChangedAt + PlaybackArtworkPulseDelay)
+                _playbackArtworkPulseAttempts < MaximumPlaybackArtworkPulseAttempts &&
+                now >= _nextPlaybackArtworkPulseAt)
             {
                 _playbackArtworkPulseIssued = true;
+                _playbackArtworkPulseAttempts++;
                 pulsePlaybackForArtwork = true;
             }
             if (_disposed || now >= _rapidProbeUntil)

@@ -21,6 +21,8 @@ internal sealed class CoreAudioResolver : IDisposable
     private bool _operationPosted;
     private bool _refreshRequested;
     private bool _resetRequested;
+    private bool _selectedInvalidated;
+    private DateTimeOffset _lastManagerResetRequestedAt = DateTimeOffset.MinValue;
     private DateTimeOffset _lastSessionResolutionAt = DateTimeOffset.MinValue;
     private SynchronizationContext? _context;
 
@@ -29,7 +31,7 @@ internal sealed class CoreAudioResolver : IDisposable
 
     public CoreAudioResolver()
     {
-        _endpointNotifications = new EndpointNotifications(() => RequestOperation(reset: true));
+        _endpointNotifications = new EndpointNotifications(RequestManagerReset);
         _sessionNotifications = new SessionNotifications(() => RequestOperation(reset: false));
     }
 
@@ -52,7 +54,7 @@ internal sealed class CoreAudioResolver : IDisposable
                 InitializeManagers();
                 forceSessionResolution = true;
             }
-            if (forceSessionResolution || _selected is null ||
+            if (forceSessionResolution || _selectedInvalidated || _selected is null ||
                 DateTimeOffset.UtcNow - _lastSessionResolutionAt >= TimeSpan.FromSeconds(10))
             {
                 var candidate = FindBestSession();
@@ -65,6 +67,7 @@ internal sealed class CoreAudioResolver : IDisposable
         {
             Console.Error.WriteLine($"Core Audio refresh: {ex.Message}");
             SetSnapshot(new(false));
+            RequestManagerReset();
         }
         finally
         {
@@ -78,21 +81,25 @@ internal sealed class CoreAudioResolver : IDisposable
         SelectedSession? selected;
         lock (_gate) selected = _selected;
         if (selected is null) throw new InvalidOperationException("Apple Music for Windows audio session is unavailable.");
-        ThrowIfFailed(selected.Volume.GetMasterVolume(out var current));
-        var next = Math.Clamp(current + (float)(deltaPercentagePoints / 100d), 0f, 1f);
-        var context = EventContext;
-        ThrowIfFailed(selected.Volume.SetMasterVolume(next, ref context));
-        var muted = Snapshot.Muted ?? false;
         try
         {
+            ThrowIfFailed(selected.Volume.GetMasterVolume(out var current));
+            var next = Math.Clamp(current + (float)(deltaPercentagePoints / 100d), 0f, 1f);
+            var context = EventContext;
+            ThrowIfFailed(selected.Volume.SetMasterVolume(next, ref context));
+            var muted = Snapshot.Muted ?? false;
             if (selected.Volume.GetMute(out var currentMute) >= 0) muted = currentMute;
+            // Some Apple Music for Windows/Amp sessions accept SetMasterVolume immediately but
+            // return a stale cached value and omit the expected callback for several
+            // seconds. The successful target is authoritative for immediate UI;
+            // ordinary event/watchdog reads reconcile any later external change.
+            SetSnapshot(new(true, (int)Math.Round(next * 100), muted, selected.BindingKind));
         }
-        catch { }
-        // Some Apple Music for Windows/Amp sessions accept SetMasterVolume immediately but
-        // return a stale cached value and omit the expected callback for several
-        // seconds. The successful target is authoritative for immediate UI;
-        // ordinary event/watchdog reads reconcile any later external change.
-        SetSnapshot(new(true, (int)Math.Round(next * 100), muted, selected.BindingKind));
+        catch
+        {
+            InvalidateSelectedSession(resetManagers: true);
+            throw;
+        }
     }
 
     public async Task ToggleMuteAsync()
@@ -101,20 +108,28 @@ internal sealed class CoreAudioResolver : IDisposable
         SelectedSession? selected;
         lock (_gate) selected = _selected;
         if (selected is null) throw new InvalidOperationException("Apple Music for Windows audio session is unavailable.");
-        ThrowIfFailed(selected.Volume.GetMute(out var muted));
-        var context = EventContext;
-        ThrowIfFailed(selected.Volume.SetMute(!muted, ref context));
-        var volume = Snapshot.VolumePercent;
-        if (volume is null)
+        try
         {
-            try
+            ThrowIfFailed(selected.Volume.GetMute(out var muted));
+            var context = EventContext;
+            ThrowIfFailed(selected.Volume.SetMute(!muted, ref context));
+            var volume = Snapshot.VolumePercent;
+            if (volume is null)
             {
-                if (selected.Volume.GetMasterVolume(out var currentVolume) >= 0)
-                    volume = (int)Math.Round(currentVolume * 100);
+                try
+                {
+                    if (selected.Volume.GetMasterVolume(out var currentVolume) >= 0)
+                        volume = (int)Math.Round(currentVolume * 100);
+                }
+                catch { }
             }
-            catch { }
+            SetSnapshot(new(true, volume, !muted, selected.BindingKind));
         }
-        SetSnapshot(new(true, volume, !muted, selected.BindingKind));
+        catch
+        {
+            InvalidateSelectedSession(resetManagers: true);
+            throw;
+        }
     }
 
     private async Task ResetAsync()
@@ -210,6 +225,7 @@ internal sealed class CoreAudioResolver : IDisposable
     private Candidate? FindBestSession()
     {
         Candidate? best = null;
+        var endpointScanFailed = false;
         foreach (var binding in _sessionManagers)
         {
             IAudioSessionEnumerator? enumerator = null;
@@ -259,6 +275,7 @@ internal sealed class CoreAudioResolver : IDisposable
             }
             catch (Exception ex)
             {
+                endpointScanFailed = true;
                 Console.Error.WriteLine($"Audio endpoint scan {binding.EndpointId}: {ex.Message}");
             }
             finally
@@ -266,6 +283,8 @@ internal sealed class CoreAudioResolver : IDisposable
                 ReleaseCom(enumerator);
             }
         }
+        if (best is null && endpointScanFailed)
+            throw new InvalidOperationException("Core Audio endpoint scan failed before an Apple Music session was found.");
         return best;
     }
 
@@ -273,7 +292,8 @@ internal sealed class CoreAudioResolver : IDisposable
     {
         lock (_gate)
         {
-            if (candidate is not null && _selected?.InstanceIdentifier == candidate.InstanceIdentifier)
+            if (candidate is not null && !_selectedInvalidated &&
+                _selected?.InstanceIdentifier == candidate.InstanceIdentifier)
             {
                 _selected.BindingKind = candidate.BindingKind;
                 candidate.Release();
@@ -283,11 +303,13 @@ internal sealed class CoreAudioResolver : IDisposable
             if (candidate is null) return;
             var events = new SessionEvents(
                 () => Post(UpdateSnapshot),
-                () => RequestOperation(reset: false));
+                () => RequestOperation(reset: false),
+                () => Post(() => InvalidateSelectedSession(resetManagers: true)));
             try
             {
                 ThrowIfFailed(candidate.Control2.RegisterAudioSessionNotification(events));
                 _selected = candidate.Adopt(events);
+                _selectedInvalidated = false;
             }
             catch
             {
@@ -314,7 +336,7 @@ internal sealed class CoreAudioResolver : IDisposable
         }
         catch
         {
-            RequestOperation(reset: false);
+            InvalidateSelectedSession(resetManagers: true);
         }
     }
 
@@ -339,11 +361,20 @@ internal sealed class CoreAudioResolver : IDisposable
 
     private void UnbindLocked()
     {
+        _selectedInvalidated = false;
         if (_selected is null) return;
         var retired = _selected;
         try { retired.Control2.UnregisterAudioSessionNotification(retired.Events); } catch { }
         _selected = null;
         _retiredSessions.Retain(retired);
+    }
+
+    private void InvalidateSelectedSession(bool resetManagers)
+    {
+        lock (_gate) _selectedInvalidated = true;
+        SetSnapshot(new(false));
+        if (resetManagers) RequestManagerReset();
+        else RequestOperation(reset: false);
     }
 
     private static (string? Name, string? Path) GetProcessEvidence(uint processId)
@@ -413,6 +444,19 @@ internal sealed class CoreAudioResolver : IDisposable
         void Start() => _ = DrainRequestedOperationsAsync();
         if (_context is null || ReferenceEquals(SynchronizationContext.Current, _context)) Start();
         else _context.Post(_ => Start(), null);
+    }
+
+    private void RequestManagerReset()
+    {
+        var now = DateTimeOffset.UtcNow;
+        lock (_postGate)
+        {
+            // A reset performs another scan. Keep persistent Windows failures
+            // from turning that scan into an immediate reset loop.
+            if (now - _lastManagerResetRequestedAt < TimeSpan.FromSeconds(2)) return;
+            _lastManagerResetRequestedAt = now;
+        }
+        RequestOperation(reset: true);
     }
 
     private async Task DrainRequestedOperationsAsync()
@@ -530,14 +574,14 @@ internal sealed class CoreAudioResolver : IDisposable
     }
 
     [ComVisible(true), ClassInterface(ClassInterfaceType.None)]
-    private sealed class SessionEvents(Action volumeChanged, Action rebind) : IAudioSessionEvents
+    private sealed class SessionEvents(Action volumeChanged, Action rebind, Action reset) : IAudioSessionEvents
     {
         public int OnDisplayNameChanged(string? value, IntPtr context) { rebind(); return 0; }
         public int OnIconPathChanged(string? value, IntPtr context) => 0;
         public int OnSimpleVolumeChanged(float volume, bool muted, IntPtr context) { volumeChanged(); return 0; }
         public int OnChannelVolumeChanged(uint count, IntPtr volumes, uint channel, IntPtr context) => 0;
         public int OnGroupingParamChanged(IntPtr grouping, IntPtr context) => 0;
-        public int OnStateChanged(AudioSessionState state) { rebind(); return 0; }
-        public int OnSessionDisconnected(AudioSessionDisconnectReason reason) { rebind(); return 0; }
+        public int OnStateChanged(AudioSessionState state) { if (state == AudioSessionState.Expired) reset(); else rebind(); return 0; }
+        public int OnSessionDisconnected(AudioSessionDisconnectReason reason) { reset(); return 0; }
     }
 }

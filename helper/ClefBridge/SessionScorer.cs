@@ -18,6 +18,10 @@ internal static partial class SessionScorer
 
     public static (int Score, string? BindingKind) ScoreAudio(AudioCandidateEvidence candidate)
     {
+        // Expired sessions can remain enumerable after Apple Music replaces its
+        // audio stream. Never let strong process-name evidence keep one bound.
+        if (candidate.State == AudioSessionState.Expired) return (int.MinValue, null);
+
         var process = Normalize(candidate.ProcessName);
         var path = Normalize(candidate.ExecutablePath);
         var identifier = Normalize(candidate.SessionIdentifier);
@@ -58,7 +62,6 @@ internal static partial class SessionScorer
             score += 15;
 
         if (candidate.State == AudioSessionState.Active) score += 25;
-        if (candidate.State == AudioSessionState.Expired) score -= 200;
         return (score, kind);
     }
 
@@ -102,6 +105,9 @@ internal static class ResolverSelfTests
 
         var processResult = SessionScorer.ScoreAudio(new("AmpLibraryAgent", @"C:\\Program Files\\WindowsApps\\AppleInc.AppleMusic_1.0\\AmpLibraryAgent.exe", null, "7-Amp Library Agent", AudioSessionState.Inactive));
         Require(processResult.Score > 200, "stable process/path evidence");
+
+        var expiredResult = SessionScorer.ScoreAudio(new("AmpLibraryAgent", null, null, "Amp Library Agent", AudioSessionState.Expired));
+        Require(!SessionScorer.IsAcceptableAudioScore(expiredResult.Score), "expired Amp session is rejected");
 
         var frontEndResult = SessionScorer.ScoreAudio(new(
             "AppleMusic",
