@@ -6,12 +6,14 @@ namespace ClefBridge;
 internal sealed class CoreAudioResolver : IDisposable
 {
     private static readonly Guid EventContext = new("50D4180C-EC12-42CB-A2B8-4E4F56DB993B");
+    private static readonly TimeSpan SessionResolutionInterval = TimeSpan.FromSeconds(2);
     private readonly object _gate = new();
     private readonly object _postGate = new();
     private readonly SemaphoreSlim _refreshLock = new(1, 1);
     private readonly EndpointNotifications _endpointNotifications;
     private readonly SessionNotifications _sessionNotifications;
     private readonly List<ManagerBinding> _sessionManagers = [];
+    private readonly HashSet<string> _audibleSessionIds = new(StringComparer.Ordinal);
     private readonly GraceRetainer<SelectedSession> _retiredSessions = new(TimeSpan.FromSeconds(30), 32, session => session.Release());
     private readonly GraceRetainer<object> _retiredComObjects = new(TimeSpan.FromSeconds(30), 64, ReleaseCom);
     private IMMDeviceEnumerator? _deviceEnumerator;
@@ -55,7 +57,7 @@ internal sealed class CoreAudioResolver : IDisposable
                 forceSessionResolution = true;
             }
             if (forceSessionResolution || _selectedInvalidated || _selected is null ||
-                DateTimeOffset.UtcNow - _lastSessionResolutionAt >= TimeSpan.FromSeconds(10))
+                DateTimeOffset.UtcNow - _lastSessionResolutionAt >= SessionResolutionInterval)
             {
                 var candidate = FindBestSession();
                 Bind(candidate);
@@ -77,7 +79,7 @@ internal sealed class CoreAudioResolver : IDisposable
 
     public async Task AdjustVolumeAsync(double deltaPercentagePoints)
     {
-        await RefreshAsync();
+        await RefreshAsync(forceSessionResolution: true);
         SelectedSession? selected;
         lock (_gate) selected = _selected;
         if (selected is null) throw new InvalidOperationException("Apple Music for Windows audio session is unavailable.");
@@ -104,7 +106,7 @@ internal sealed class CoreAudioResolver : IDisposable
 
     public async Task ToggleMuteAsync()
     {
-        await RefreshAsync();
+        await RefreshAsync(forceSessionResolution: true);
         SelectedSession? selected;
         lock (_gate) selected = _selected;
         if (selected is null) throw new InvalidOperationException("Apple Music for Windows audio session is unavailable.");
@@ -176,6 +178,7 @@ internal sealed class CoreAudioResolver : IDisposable
             deviceEnumerator = (IMMDeviceEnumerator)(object)new MMDeviceEnumeratorComObject();
             ThrowIfFailed(deviceEnumerator.RegisterEndpointNotificationCallback(_endpointNotifications));
             endpointNotificationsRegistered = true;
+            var defaultEndpointIds = GetDefaultRenderEndpointIds(deviceEnumerator);
             ThrowIfFailed(deviceEnumerator.EnumAudioEndpoints(EDataFlow.Render, 0x1, out endpoints));
             ThrowIfFailed(endpoints.GetCount(out var count));
             for (uint index = 0; index < count; index++)
@@ -191,7 +194,7 @@ internal sealed class CoreAudioResolver : IDisposable
                     ThrowIfFailed(endpoint.Activate(ref iid, ClsCtx.All, IntPtr.Zero, out managerObject));
                     var manager = (IAudioSessionManager2)managerObject;
                     ThrowIfFailed(manager.RegisterSessionNotification(_sessionNotifications));
-                    _sessionManagers.Add(new(endpointId, manager));
+                    _sessionManagers.Add(new(endpointId, defaultEndpointIds.Contains(endpointId), manager));
                     managerRetained = true;
                 }
                 catch (Exception ex)
@@ -226,6 +229,9 @@ internal sealed class CoreAudioResolver : IDisposable
     {
         Candidate? best = null;
         var endpointScanFailed = false;
+        var seenSessionIds = new HashSet<string>(StringComparer.Ordinal);
+        string? selectedSessionId;
+        lock (_gate) selectedSessionId = _selected?.InstanceIdentifier;
         foreach (var binding in _sessionManagers)
         {
             IAudioSessionEnumerator? enumerator = null;
@@ -246,14 +252,39 @@ internal sealed class CoreAudioResolver : IDisposable
                         var instanceIdentifier = GetSessionInstanceIdentifier(control2);
                         var processId = GetProcessId(control2);
                         var (processName, executablePath) = GetProcessEvidence(processId);
+                        var peak = GetPeak(control);
                         var evidence = new AudioCandidateEvidence(processName, executablePath, identifier, displayName, state);
                         var scored = SessionScorer.ScoreAudio(evidence);
                         if (!SessionScorer.IsAcceptableAudioScore(scored.Score)) continue;
                         var volume = (ISimpleAudioVolume)control;
                         var runtimeId = $"{binding.EndpointId}|{instanceIdentifier ?? identifier ?? $"pid:{processId}"}";
-                        var candidate = new Candidate(control, control2, volume, runtimeId, scored.Score, scored.BindingKind);
+                        seenSessionIds.Add(runtimeId);
+                        var safePeak = peak.HasValue && float.IsFinite(peak.Value)
+                            ? Math.Clamp(peak.Value, 0f, 1f)
+                            : 0f;
+                        if (SessionScorer.IsAudiblePeak(safePeak)) _audibleSessionIds.Add(runtimeId);
+                        var ranking = new AudioCandidateRanking(
+                            scored.Score,
+                            state,
+                            safePeak,
+                            _audibleSessionIds.Contains(runtimeId),
+                            string.Equals(runtimeId, selectedSessionId, StringComparison.Ordinal),
+                            binding.IsDefaultEndpoint);
+                        if (Environment.GetEnvironmentVariable("CLEF_AUDIO_DIAGNOSTICS") == "1")
+                        {
+                            var level = volume.GetMasterVolume(out var currentVolume) >= 0 ? currentVolume : -1;
+                            var muted = volume.GetMute(out var currentMute) >= 0 && currentMute;
+                            Console.Error.WriteLine(
+                                $"Audio candidate endpoint={binding.EndpointId} index={index} state={state} " +
+                                $"peak={(peak.HasValue ? peak.Value.ToString("F6") : "unavailable")} " +
+                                $"volume={level:F3} muted={muted} pid={processId} score={scored.Score} " +
+                                $"tier={SessionScorer.AudioActivityTier(ranking)} default={binding.IsDefaultEndpoint} " +
+                                $"selected={ranking.IsSelected} " +
+                                $"display={displayName ?? "<none>"} instance={instanceIdentifier ?? "<none>"}");
+                        }
+                        var candidate = new Candidate(control, control2, volume, runtimeId, ranking, scored.BindingKind);
                         control = null;
-                        if (best is null || candidate.Score > best.Score)
+                        if (best is null || SessionScorer.CompareAudioCandidates(candidate.Ranking, best.Ranking) > 0)
                         {
                             best?.Release();
                             best = candidate;
@@ -283,6 +314,7 @@ internal sealed class CoreAudioResolver : IDisposable
                 ReleaseCom(enumerator);
             }
         }
+        if (!endpointScanFailed) _audibleSessionIds.IntersectWith(seenSessionIds);
         if (best is null && endpointScanFailed)
             throw new InvalidOperationException("Core Audio endpoint scan failed before an Apple Music session was found.");
         return best;
@@ -420,6 +452,34 @@ internal sealed class CoreAudioResolver : IDisposable
         catch { return 0; }
     }
 
+    private static HashSet<string> GetDefaultRenderEndpointIds(IMMDeviceEnumerator enumerator)
+    {
+        var ids = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var role in new[] { ERole.Console, ERole.Multimedia })
+        {
+            IMMDevice? endpoint = null;
+            try
+            {
+                if (enumerator.GetDefaultAudioEndpoint(EDataFlow.Render, role, out endpoint) >= 0 &&
+                    endpoint.GetId(out var id) >= 0)
+                    ids.Add(id);
+            }
+            catch { }
+            finally { ReleaseCom(endpoint); }
+        }
+        return ids;
+    }
+
+    private static float? GetPeak(IAudioSessionControl control)
+    {
+        try
+        {
+            var meter = (IAudioMeterInformation)control;
+            return meter.GetPeakValue(out var peak) >= 0 ? peak : null;
+        }
+        catch { return null; }
+    }
+
     private static void ThrowIfFailed(int hresult)
     {
         if (hresult < 0) Marshal.ThrowExceptionForHR(hresult);
@@ -500,6 +560,7 @@ internal sealed class CoreAudioResolver : IDisposable
             _retiredComObjects.Retain(binding.Manager);
         }
         _sessionManagers.Clear();
+        _audibleSessionIds.Clear();
         if (_deviceEnumerator is not null)
         {
             try { _deviceEnumerator.UnregisterEndpointNotificationCallback(_endpointNotifications); } catch { }
@@ -512,14 +573,14 @@ internal sealed class CoreAudioResolver : IDisposable
         _refreshLock.Dispose();
     }
 
-    private sealed class Candidate(IAudioSessionControl control, IAudioSessionControl2 control2, ISimpleAudioVolume volume, string instanceIdentifier, int score, string? bindingKind)
+    private sealed class Candidate(IAudioSessionControl control, IAudioSessionControl2 control2, ISimpleAudioVolume volume, string instanceIdentifier, AudioCandidateRanking ranking, string? bindingKind)
     {
         private bool _owned = true;
         public IAudioSessionControl Control { get; } = control;
         public IAudioSessionControl2 Control2 { get; } = control2;
         public ISimpleAudioVolume Volume { get; } = volume;
         public string InstanceIdentifier { get; } = instanceIdentifier;
-        public int Score { get; } = score;
+        public AudioCandidateRanking Ranking { get; } = ranking;
         public string? BindingKind { get; } = bindingKind;
 
         public SelectedSession Adopt(SessionEvents events)
@@ -555,7 +616,7 @@ internal sealed class CoreAudioResolver : IDisposable
         }
     }
 
-    private sealed record ManagerBinding(string EndpointId, IAudioSessionManager2 Manager);
+    private sealed record ManagerBinding(string EndpointId, bool IsDefaultEndpoint, IAudioSessionManager2 Manager);
 
     [ComVisible(true), ClassInterface(ClassInterfaceType.None)]
     private sealed class EndpointNotifications(Action reset) : IMMNotificationClient

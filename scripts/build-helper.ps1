@@ -18,5 +18,9 @@ $output = Join-Path $projectRoot 'com.davedev.clef.sdPlugin\helper'
 & $dotnet publish $project -c Release -r win-x64 --self-contained true -o $output
 if ($LASTEXITCODE -ne 0) { throw "Helper publish failed with exit code $LASTEXITCODE." }
 
+$helper = Join-Path $output 'ClefBridge.exe'
+& $helper --self-test
+if ($LASTEXITCODE -ne 0) { throw "Helper self-tests failed with exit code $LASTEXITCODE." }
+
 $pdb = Join-Path $output 'ClefBridge.pdb'
 if (Test-Path -LiteralPath $pdb) { Remove-Item -LiteralPath $pdb -Force }

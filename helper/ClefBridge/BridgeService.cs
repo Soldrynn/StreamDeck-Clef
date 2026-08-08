@@ -84,17 +84,11 @@ internal sealed class BridgeService : IAsyncDisposable
     private async Task WatchdogAsync(CancellationToken cancellationToken)
     {
         using var timer = new PeriodicTimer(TimeSpan.FromSeconds(2.5));
-        var tick = 0;
         try
         {
             while (await timer.WaitForNextTickAsync(cancellationToken))
             {
-                tick++;
-                var mediaRefresh = _media.RefreshAsync();
-                if (!_audio.Snapshot.Available || tick % 2 == 0)
-                    await Task.WhenAll(mediaRefresh, _audio.RefreshAsync());
-                else
-                    await mediaRefresh;
+                await Task.WhenAll(_media.RefreshAsync(), _audio.RefreshAsync());
             }
         }
         catch (OperationCanceledException) { }

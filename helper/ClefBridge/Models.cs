@@ -33,3 +33,11 @@ internal sealed record AudioCandidateEvidence(
     string? SessionIdentifier,
     string? DisplayName,
     AudioSessionState State);
+
+internal readonly record struct AudioCandidateRanking(
+    int IdentityScore,
+    AudioSessionState State,
+    float Peak,
+    bool WasAudible,
+    bool IsSelected,
+    bool IsDefaultEndpoint);

@@ -125,6 +125,15 @@ internal interface ISimpleAudioVolume
     int GetMute([MarshalAs(UnmanagedType.Bool)] out bool mute);
 }
 
+[ComImport, InterfaceType(ComInterfaceType.InterfaceIsIUnknown), Guid("C02216F6-8C67-4B5B-9D00-D008E73E0064")]
+internal interface IAudioMeterInformation
+{
+    int GetPeakValue(out float peak);
+    int GetMeteringChannelCount(out int channelCount);
+    int GetChannelsPeakValues(int channelCount, [Out, MarshalAs(UnmanagedType.LPArray, SizeParamIndex = 0)] float[] peakValues);
+    int QueryHardwareSupport(out uint hardwareSupportMask);
+}
+
 [ComVisible(true), InterfaceType(ComInterfaceType.InterfaceIsIUnknown), Guid("641DD20B-4D41-49CC-ABA3-174B9477BB08")]
 public interface IAudioSessionNotification
 {

@@ -4,6 +4,8 @@ namespace ClefBridge;
 
 internal static partial class SessionScorer
 {
+    private const float AudiblePeakThreshold = 0.0001f;
+
     public static int ScoreMedia(string? sourceAppId, bool isCurrent, bool isPlaying)
     {
         var normalized = Normalize(sourceAppId);
@@ -67,6 +69,43 @@ internal static partial class SessionScorer
 
     public static bool IsAcceptableAudioScore(int score) => score >= 70;
 
+    public static bool IsAudiblePeak(float peak) => float.IsFinite(peak) && peak >= AudiblePeakThreshold;
+
+    public static int CompareAudioCandidates(AudioCandidateRanking left, AudioCandidateRanking right)
+    {
+        var leftTier = AudioActivityTier(left);
+        var rightTier = AudioActivityTier(right);
+        var comparison = leftTier.CompareTo(rightTier);
+        if (comparison != 0) return comparison;
+
+        if (leftTier == 3)
+        {
+            comparison = left.Peak.CompareTo(right.Peak);
+            if (comparison != 0) return comparison;
+        }
+
+        // Once a session has produced sound, keep the current binding stable
+        // through quiet passages and pauses. Before activity is known, the
+        // current/default render endpoint is a better tie-break than COM order.
+        if (leftTier >= 2)
+        {
+            comparison = left.IsSelected.CompareTo(right.IsSelected);
+            if (comparison != 0) return comparison;
+        }
+        comparison = left.IsDefaultEndpoint.CompareTo(right.IsDefaultEndpoint);
+        if (comparison != 0) return comparison;
+        comparison = left.IsSelected.CompareTo(right.IsSelected);
+        if (comparison != 0) return comparison;
+        return left.IdentityScore.CompareTo(right.IdentityScore);
+    }
+
+    internal static int AudioActivityTier(AudioCandidateRanking candidate)
+    {
+        if (IsAudiblePeak(candidate.Peak)) return 3;
+        if (candidate.WasAudible) return 2;
+        return candidate.State == AudioSessionState.Active ? 1 : 0;
+    }
+
     internal static string Normalize(string? value) =>
         string.IsNullOrWhiteSpace(value)
             ? string.Empty
@@ -108,6 +147,21 @@ internal static class ResolverSelfTests
 
         var expiredResult = SessionScorer.ScoreAudio(new("AmpLibraryAgent", null, null, "Amp Library Agent", AudioSessionState.Expired));
         Require(!SessionScorer.IsAcceptableAudioScore(expiredResult.Score), "expired Amp session is rejected");
+
+        var inactiveIdentityWinner = new AudioCandidateRanking(395, AudioSessionState.Inactive, 0, false, false, false);
+        var activeStream = new AudioCandidateRanking(320, AudioSessionState.Active, 0.15f, false, false, false);
+        Require(SessionScorer.CompareAudioCandidates(activeStream, inactiveIdentityWinner) > 0,
+            "audible session beats stronger inactive identity");
+
+        var rememberedStream = activeStream with { Peak = 0, State = AudioSessionState.Inactive, WasAudible = true, IsSelected = true };
+        var newActiveDuplicate = inactiveIdentityWinner with { State = AudioSessionState.Active };
+        Require(SessionScorer.CompareAudioCandidates(rememberedStream, newActiveDuplicate) > 0,
+            "known audible session remains stable while quiet");
+
+        var defaultActive = newActiveDuplicate with { IdentityScore = 200, IsDefaultEndpoint = true };
+        var selectedActiveDuplicate = newActiveDuplicate with { IsSelected = true };
+        Require(SessionScorer.CompareAudioCandidates(defaultActive, selectedActiveDuplicate) > 0,
+            "default endpoint breaks an activity tie before stale selection");
 
         var frontEndResult = SessionScorer.ScoreAudio(new(
             "AppleMusic",
