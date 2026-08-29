@@ -197,7 +197,6 @@ The repository uses the following top-level directories:
 | --- | --- |
 | `branding/` | Source artwork for the public Clef app icon. |
 | `com.davedev.clef.sdPlugin/` | Manifest, layouts, property inspector, generated helper, and visual assets. |
-| `docs/marketplace-media/` | Splash and store images. |
 | `helper/ClefBridge/` | C# Windows media-session and Core Audio helper source. |
 | `scripts/` | Build, validation, packaging, smoke-test, and memory-test commands. |
 | `src/` | TypeScript Stream Deck actions, rendering, settings, and helper supervision. |

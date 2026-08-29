@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { adjustedVolume, formatTime, hasSelectedTrack, interpolatedPosition, marqueeText, volumeSettings, type BridgeState } from "../src/model.ts";
+import { adjustedVolume, formatTime, hasSelectedTrack, interpolatedPosition, marqueeText, sampledNewPosition, volumeSettings, type BridgeState, type MediaState } from "../src/model.ts";
 import { TickCoalescer } from "../src/tick-coalescer.ts";
 
 test("per-action settings are clamped to supported ranges", () => {
@@ -24,6 +24,17 @@ test("display time and progress interpolation stay bounded", () => {
     audio: { available: false }
   };
   assert.equal(interpolatedPosition(state, 1_000, 20_000), 10_000);
+});
+
+test("a state republished by a volume change does not restart the playhead clock", () => {
+  const playing: MediaState = {
+    available: true, playbackStatus: "playing", title: "Song", artist: "Artist", positionMs: 30_000, durationMs: 200_000
+  };
+  assert.equal(sampledNewPosition(playing, { ...playing }), false);
+  assert.equal(sampledNewPosition(playing, { ...playing, positionMs: 32_500 }), true);
+  assert.equal(sampledNewPosition(playing, { ...playing, title: "Next song" }), true);
+  assert.equal(sampledNewPosition(playing, { ...playing, playbackStatus: "paused" }), true);
+  assert.equal(sampledNewPosition(playing, { ...playing, available: false }), true);
 });
 
 test("a connected media session without a selected song stays visually neutral", () => {
@@ -51,6 +62,17 @@ test("a full track-control turn sends one track change", async () => {
   await new Promise(resolve => setTimeout(resolve, 15));
   assert.deepEqual(commands, ["next"]);
   coalescer.dispose();
+});
+
+test("a sustained volume turn keeps flushing instead of deferring to its end", async () => {
+  const flushed: number[] = [];
+  const coalescer = new TickCoalescer(ticks => flushed.push(ticks), 20, 40);
+  const turn = setInterval(() => coalescer.add(1), 5);
+  await new Promise(resolve => setTimeout(resolve, 150));
+  clearInterval(turn);
+  coalescer.dispose();
+  assert.ok(flushed.length >= 2, `expected repeated flushes during the turn, got ${flushed.length}`);
+  assert.ok(flushed.every(ticks => ticks > 0), "every flush keeps the turn's direction");
 });
 
 test("long touch-strip text pauses, scrolls, and wraps", () => {

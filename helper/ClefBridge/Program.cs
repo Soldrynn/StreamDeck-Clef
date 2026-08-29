@@ -1,3 +1,4 @@
+using System.Threading.Channels;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -5,8 +6,11 @@ namespace ClefBridge;
 
 internal static class Program
 {
-    private static readonly object OutputGate = new();
+    private const int MaximumQueuedFrames = 256;
+    private static int _queuedFrames;
     private static readonly Stream OutputStream = Console.OpenStandardOutput();
+    private static readonly Channel<byte[]> Output = Channel.CreateUnbounded<byte[]>(
+        new UnboundedChannelOptions { SingleReader = true });
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
@@ -38,15 +42,16 @@ internal static class Program
             return 0;
         }
 
+        var writer = new Thread(PumpOutput) { IsBackground = true, Name = "ClefBridge output" };
+        writer.Start();
         try
         {
             await using var service = new BridgeService();
-            service.StateChanged += Write;
+            service.StateChanged += snapshot => Write(snapshot, droppable: true);
             Write(new { type = "hello", protocol = 1, version = "1.0.0.0" });
             await service.InitializeAsync();
 
-            string? line;
-            while ((line = await Console.In.ReadLineAsync()) is not null)
+            await foreach (var line in ReadCommandLinesAsync())
             {
                 if (string.IsNullOrWhiteSpace(line)) continue;
                 CommandMessage? command = null;
@@ -72,15 +77,73 @@ internal static class Program
             Console.Error.WriteLine(ex);
             return 1;
         }
+        finally
+        {
+            Output.Writer.TryComplete();
+            writer.Join(TimeSpan.FromSeconds(2));
+        }
     }
 
-    private static void Write<T>(T message)
+    private static async IAsyncEnumerable<string> ReadCommandLinesAsync()
     {
-        lock (OutputGate)
+        var lines = Channel.CreateUnbounded<string>(
+            new UnboundedChannelOptions { SingleReader = true, SingleWriter = true });
+        _ = Task.Run(() =>
         {
-            JsonSerializer.Serialize(OutputStream, message, JsonOptions);
-            OutputStream.WriteByte((byte)'\n');
-            OutputStream.Flush();
+            try
+            {
+                string? line;
+                while ((line = Console.In.ReadLine()) is not null) lines.Writer.TryWrite(line);
+            }
+            catch (Exception ex)
+            {
+                Console.Error.WriteLine($"Command input failed: {ex.Message}");
+            }
+            finally
+            {
+                lines.Writer.TryComplete();
+            }
+        });
+
+        await foreach (var line in lines.Reader.ReadAllAsync()) yield return line;
+    }
+
+    private static void Write<T>(T message, bool droppable = false)
+    {
+        if (droppable && Volatile.Read(ref _queuedFrames) >= MaximumQueuedFrames) return;
+        byte[] frame;
+        try
+        {
+            using var buffer = new MemoryStream();
+            JsonSerializer.Serialize(buffer, message, JsonOptions);
+            buffer.WriteByte((byte)'\n');
+            frame = buffer.ToArray();
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"Output serialization failed: {ex.Message}");
+            return;
+        }
+        if (Output.Writer.TryWrite(frame)) Interlocked.Increment(ref _queuedFrames);
+    }
+
+    private static void PumpOutput()
+    {
+        try
+        {
+            while (Output.Reader.WaitToReadAsync().AsTask().GetAwaiter().GetResult())
+            {
+                while (Output.Reader.TryRead(out var frame))
+                {
+                    Interlocked.Decrement(ref _queuedFrames);
+                    OutputStream.Write(frame, 0, frame.Length);
+                }
+                OutputStream.Flush();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"Output pipe closed: {ex.Message}");
         }
     }
 }

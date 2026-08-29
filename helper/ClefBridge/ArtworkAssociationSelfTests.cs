@@ -15,10 +15,10 @@ internal static class ArtworkAssociationSelfTests
         Require(!tracker.ShouldAccept("hash-a", "song-b", "album-b", 3, start + TimeSpan.FromSeconds(5)),
             "previous album artwork cannot cross-bind");
 
-        Require(!tracker.ShouldAccept("hash-b", "song-b", "album-b", 2, start + TimeSpan.FromMilliseconds(300)),
+        Require(!tracker.ShouldAccept("hash-b", "song-b", "album-b", 2, start + TimeSpan.FromMilliseconds(100)),
             "new artwork waits for settlement");
-        Require(tracker.ShouldAccept("hash-b", "song-b", "album-b", 2, start + TimeSpan.FromMilliseconds(1500)),
-            "stable new artwork is accepted");
+        Require(tracker.ShouldAccept("hash-b", "song-b", "album-b", 2, start + TimeSpan.FromMilliseconds(600)),
+            "stable new artwork settles within one probe round");
         tracker.Commit("hash-b", "album-b");
 
         tracker.ChangeIdentity("song-c", "album-b", hadPreviousTrack: true, 4, start + TimeSpan.FromSeconds(2));

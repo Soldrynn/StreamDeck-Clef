@@ -1,14 +1,12 @@
 namespace ClefBridge;
 
-/// <summary>
-/// Prevents a thumbnail hash already committed to one album/track group from
-/// being assigned to a different group while GSMTC media properties settle.
-/// New hashes require either a later media-properties event or two separated
-/// observations after the transition window begins.
-/// </summary>
 internal sealed class ArtworkAssociationTracker
 {
     private const int MaximumHistory = 16;
+    private static readonly TimeSpan ObservationGap = TimeSpan.FromMilliseconds(250);
+    private static readonly TimeSpan MinimumTransitionAge = TimeSpan.FromMilliseconds(600);
+    private static readonly TimeSpan MinimumCandidateAge = TimeSpan.FromMilliseconds(300);
+    private static readonly TimeSpan MinimumConfirmedTransitionAge = TimeSpan.FromMilliseconds(150);
     private readonly List<Commitment> _history = [];
     private string? _currentIdentityKey;
     private string? _currentGroupKey;
@@ -60,18 +58,18 @@ internal sealed class ArtworkAssociationTracker
         {
             _candidate = new(contentHash, identityKey, now, now, 1);
         }
-        else if (now - _candidate.LastSeenAt >= TimeSpan.FromMilliseconds(350))
+        else if (now - _candidate.LastSeenAt >= ObservationGap)
         {
             _candidate = _candidate with { LastSeenAt = now, Observations = _candidate.Observations + 1 };
         }
 
         if (mediaPropertiesGeneration > _transitionGeneration &&
-            now - _transitionAt >= TimeSpan.FromMilliseconds(250))
+            now - _transitionAt >= MinimumConfirmedTransitionAge)
             return true;
 
         return _candidate.Observations >= 2 &&
-            now - _transitionAt >= TimeSpan.FromMilliseconds(1200) &&
-            now - _candidate.FirstSeenAt >= TimeSpan.FromMilliseconds(500);
+            now - _transitionAt >= MinimumTransitionAge &&
+            now - _candidate.FirstSeenAt >= MinimumCandidateAge;
     }
 
     public void Commit(string contentHash, string groupKey)

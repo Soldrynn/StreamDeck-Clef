@@ -9,8 +9,17 @@ namespace ClefBridge;
 
 internal sealed class MediaSessionResolver : IDisposable
 {
+    private static readonly bool Diagnostics = Environment.GetEnvironmentVariable("CLEF_MEDIA_DIAGNOSTICS") == "1";
+
+    private static void Trace(string message) =>
+        Console.Error.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] {message}");
+
     private static readonly TimeSpan ArtworkRetryDuration = TimeSpan.FromSeconds(60);
-    private static readonly TimeSpan RapidProbeDuration = TimeSpan.FromSeconds(8);
+    private static readonly TimeSpan RapidProbeDuration = TimeSpan.FromSeconds(20);
+    private static readonly TimeSpan ArtworkReadTimeout = TimeSpan.FromSeconds(45);
+    private static readonly TimeSpan ArtworkReadStallBudget = TimeSpan.FromMilliseconds(1500);
+    private const int MaximumStalledArtworkReads = 3;
+    private static readonly TimeSpan ArtworkTransitionSettleDelay = TimeSpan.FromMilliseconds(250);
     private static readonly TimeSpan PlaybackArtworkPulseDelay = TimeSpan.FromMilliseconds(1250);
     private static readonly TimeSpan PlaybackArtworkPulseRetryDelay = TimeSpan.FromMilliseconds(750);
     private const int MaximumPlaybackArtworkPulseAttempts = 4;
@@ -20,11 +29,15 @@ internal sealed class MediaSessionResolver : IDisposable
         TimeSpan.FromMilliseconds(1500),
         TimeSpan.FromMilliseconds(2500),
         TimeSpan.FromSeconds(4),
-        TimeSpan.FromSeconds(6)
+        TimeSpan.FromSeconds(6),
+        TimeSpan.FromSeconds(9),
+        TimeSpan.FromSeconds(13),
+        TimeSpan.FromSeconds(18)
     ];
     private readonly SemaphoreSlim _refreshLock = new(1, 1);
     private readonly object _requestGate = new();
     private readonly ArtworkAssociationTracker _artworkAssociations = new();
+    private readonly List<Task> _stalledArtworkReads = [];
     private GlobalSystemMediaTransportControlsSessionManager? _manager;
     private GlobalSystemMediaTransportControlsSession? _selected;
     private MediaSnapshot _snapshot = new(false);
@@ -178,10 +191,6 @@ internal sealed class MediaSessionResolver : IDisposable
             if (!accepted) throw new InvalidOperationException(next ? "Apple Music for Windows rejected next track." : "Apple Music for Windows rejected previous track.");
             if (!next && !await WaitForIdentityChangeAsync(before, TimeSpan.FromMilliseconds(400)))
             {
-                // Apple Music for Windows treats the first Previous request as "restart this
-                // song" on some builds. A second direct transport request after
-                // that restart provides the previous-track behavior promised by
-                // the encoder without relying on unsupported seeking.
                 if (!await session.TrySkipPreviousAsync())
                     throw new InvalidOperationException("Apple Music for Windows rejected previous track.");
             }
@@ -279,6 +288,10 @@ internal sealed class MediaSessionResolver : IDisposable
                 }
 
                 if (_artworkDirty && now > _artworkRetryUntil) _artworkDirty = false;
+                if (Diagnostics)
+                    Trace($"Probe identityChanged={identityChanged} dirty={_artworkDirty} " +
+                          $"haveArt={_artworkDataUri is not null} thumb={properties.Thumbnail is not null} " +
+                          $"retryIn={(_artworkRetryUntil - now).TotalSeconds:F1}s title='{nextIdentity.Title}'");
                 if (_artworkDirty)
                 {
                     QueueArtwork(
@@ -320,13 +333,30 @@ internal sealed class MediaSessionResolver : IDisposable
             _artworkKey));
     }
 
-    private static async Task<(string? DataUri, string? Key)> ReadArtworkAsync(IRandomAccessStreamReference? reference)
+    private static async Task<(string? DataUri, string? Key, bool Unanswered)> ReadArtworkAsync(
+        IRandomAccessStreamReference? reference)
     {
-        if (reference is null) return (null, null);
-        using var stream = await reference.OpenReadAsync();
+        if (reference is null) return (null, null, false);
+        using var timeout = new CancellationTokenSource(ArtworkReadTimeout);
+        try
+        {
+            var (dataUri, key) = await ReadArtworkCoreAsync(reference, timeout.Token);
+            return (dataUri, key, false);
+        }
+        catch (OperationCanceledException)
+        {
+            return (null, null, true);
+        }
+    }
+
+    private static async Task<(string? DataUri, string? Key)> ReadArtworkCoreAsync(
+        IRandomAccessStreamReference reference,
+        CancellationToken cancellationToken)
+    {
+        using var stream = await reference.OpenReadAsync().AsTask(cancellationToken);
         if (stream.Size > 8 * 1024 * 1024) return (null, null);
 
-        var decoder = await BitmapDecoder.CreateAsync(stream);
+        var decoder = await BitmapDecoder.CreateAsync(stream).AsTask(cancellationToken);
         if (decoder.PixelWidth == 0 || decoder.PixelHeight == 0) return (null, null);
         if (decoder.PixelWidth > 4096 || decoder.PixelHeight > 4096) return (null, null);
         const uint maximumDimension = 72;
@@ -344,21 +374,19 @@ internal sealed class MediaSessionResolver : IDisposable
             BitmapAlphaMode.Premultiplied,
             transform,
             ExifOrientationMode.RespectExifOrientation,
-            ColorManagementMode.ColorManageToSRgb);
+            ColorManagementMode.ColorManageToSRgb).AsTask(cancellationToken);
         var pixels = pixelData.DetachPixelData();
 
         using var output = new InMemoryRandomAccessStream();
-        var encoder = await BitmapEncoder.CreateAsync(BitmapEncoder.PngEncoderId, output);
+        var encoder = await BitmapEncoder.CreateAsync(BitmapEncoder.PngEncoderId, output).AsTask(cancellationToken);
         encoder.SetPixelData(BitmapPixelFormat.Bgra8, BitmapAlphaMode.Premultiplied, width, height, 96, 96, pixels);
-        await encoder.FlushAsync();
-        // A 72x72 BGRA frame is about 21 KiB. The 24 KiB cap also guarantees
-        // that its base64 data URI stays below .NET's large-object threshold.
+        await encoder.FlushAsync().AsTask(cancellationToken);
         if (output.Size == 0 || output.Size > 24 * 1024) return (null, null);
 
         var bytes = new byte[(int)output.Size];
         output.Seek(0);
         using var reader = new DataReader(output.GetInputStreamAt(0));
-        var loaded = await reader.LoadAsync((uint)bytes.Length);
+        var loaded = await reader.LoadAsync((uint)bytes.Length).AsTask(cancellationToken);
         if (loaded != bytes.Length) return (null, null);
         reader.ReadBytes(bytes);
         var hash = Convert.ToHexString(SHA256.HashData(bytes))[..16].ToLowerInvariant();
@@ -376,6 +404,7 @@ internal sealed class MediaSessionResolver : IDisposable
             IdentityKey(identity),
             ArtworkGroupKey(identity),
             mediaPropertiesGeneration);
+        if (Diagnostics) Trace($"Artwork queued running={_artworkLoadRunning} reference={reference is not null}");
         if (_artworkLoadRunning || _disposed) return;
         _artworkLoadRunning = true;
         _artworkLoadTask = DrainArtworkAsync();
@@ -383,8 +412,6 @@ internal sealed class MediaSessionResolver : IDisposable
 
     private async Task DrainArtworkAsync()
     {
-        // Always yield once so title/artist/timeline publication completes
-        // before even opening a potentially slow Windows thumbnail stream.
         await Task.Yield();
         try
         {
@@ -394,6 +421,8 @@ internal sealed class MediaSessionResolver : IDisposable
                 if (request is null) return;
                 if (!MatchesCurrentIdentity(request.Identity) || !_artworkDirty)
                 {
+                    if (Diagnostics)
+                        Trace($"Artwork drain skip current={MatchesCurrentIdentity(request.Identity)} dirty={_artworkDirty}");
                     if (ReferenceEquals(_pendingArtwork, request)) _pendingArtwork = null;
                     continue;
                 }
@@ -406,41 +435,9 @@ internal sealed class MediaSessionResolver : IDisposable
                 if (!ReferenceEquals(_pendingArtwork, request)) continue;
                 _pendingArtwork = null;
 
-                try
-                {
-                    var (dataUri, key) = await ReadArtworkAsync(request.Reference);
-                    if (_disposed || !MatchesCurrentIdentity(request.Identity)) continue;
-                    if (key is not null)
-                    {
-                        if (_expectedOldIdentity == request.Identity &&
-                            DateTimeOffset.UtcNow < _expectedIdentityChangeUntil)
-                            continue;
-                        if (!_artworkAssociations.ShouldAccept(
-                                key,
-                                request.IdentityKey,
-                                request.GroupKey,
-                                request.MediaPropertiesGeneration,
-                                DateTimeOffset.UtcNow))
-                            continue;
-
-                        _artworkAssociations.Commit(key, request.GroupKey);
-                        _artworkDataUri = dataUri;
-                        _artworkKey = CompositeArtworkKey(request.IdentityKey, key);
-                        _artworkDirty = false;
-                        CompleteForcedArtworkFetch();
-                        if (_pendingArtwork?.Identity == request.Identity) _pendingArtwork = null;
-                        if (SnapshotMatchesIdentity(request.Identity))
-                            SetSnapshot(_snapshot with { ArtworkDataUri = dataUri, ArtworkKey = _artworkKey });
-                    }
-                    else if (DateTimeOffset.UtcNow >= _artworkRetryUntil)
-                    {
-                        _artworkDirty = false;
-                    }
-                }
-                catch (Exception ex)
-                {
-                    if (!_disposed) Console.Error.WriteLine($"Media artwork: {ex.Message}");
-                }
+                var attempt = AttemptArtworkAsync(request);
+                var settled = await Task.WhenAny(attempt, Task.Delay(ArtworkReadStallBudget));
+                if (!ReferenceEquals(settled, attempt)) await RetainStalledReadAsync(attempt);
             }
         }
         finally
@@ -452,6 +449,66 @@ internal sealed class MediaSessionResolver : IDisposable
                 _artworkLoadTask = DrainArtworkAsync();
             }
         }
+    }
+
+    private async Task AttemptArtworkAsync(ArtworkRequest request)
+    {
+        try
+        {
+            var startedAt = DateTimeOffset.UtcNow;
+            var (dataUri, key, unanswered) = await ReadArtworkAsync(request.Reference);
+            if (Diagnostics)
+                Trace($"Artwork read took={(DateTimeOffset.UtcNow - startedAt).TotalMilliseconds:F0}ms " +
+                      $"hash={key ?? (unanswered ? "<unanswered>" : "<none>")} " +
+                      $"current={MatchesCurrentIdentity(request.Identity)} group={request.GroupKey}");
+            if (_disposed || !MatchesCurrentIdentity(request.Identity)) return;
+            if (key is not null)
+            {
+                if (_expectedOldIdentity == request.Identity &&
+                    DateTimeOffset.UtcNow < _expectedIdentityChangeUntil)
+                    return;
+                if (!_artworkAssociations.ShouldAccept(
+                        key,
+                        request.IdentityKey,
+                        request.GroupKey,
+                        request.MediaPropertiesGeneration,
+                        DateTimeOffset.UtcNow))
+                {
+                    if (Diagnostics) Trace($"Artwork held back hash={key}");
+                    return;
+                }
+
+                _artworkAssociations.Commit(key, request.GroupKey);
+                _artworkDataUri = dataUri;
+                _artworkKey = CompositeArtworkKey(request.IdentityKey, key);
+                _artworkDirty = false;
+                CompleteForcedArtworkFetch();
+                if (_pendingArtwork?.Identity == request.Identity) _pendingArtwork = null;
+                if (SnapshotMatchesIdentity(request.Identity))
+                    SetSnapshot(_snapshot with { ArtworkDataUri = dataUri, ArtworkKey = _artworkKey });
+            }
+            else if (unanswered)
+            {
+                _artworkRetryUntil = DateTimeOffset.UtcNow + ArtworkRetryDuration;
+            }
+            else if (DateTimeOffset.UtcNow >= _artworkRetryUntil)
+            {
+                _artworkDirty = false;
+            }
+        }
+        catch (Exception ex)
+        {
+            if (!_disposed) Console.Error.WriteLine($"Media artwork: {ex.Message}");
+        }
+    }
+
+    private async Task RetainStalledReadAsync(Task attempt)
+    {
+        _stalledArtworkReads.RemoveAll(task => task.IsCompleted);
+        _stalledArtworkReads.Add(attempt);
+        if (_stalledArtworkReads.Count < MaximumStalledArtworkReads) return;
+        var finished = await Task.WhenAny(_stalledArtworkReads);
+        _stalledArtworkReads.Remove(finished);
     }
 
     private bool MatchesCurrentIdentity(MediaIdentity identity) =>
@@ -557,10 +614,6 @@ internal sealed class MediaSessionResolver : IDisposable
                 TimeSpan.FromMilliseconds(450));
             await Task.Delay(140);
 
-            // Read while paused, rather than only after resuming. Apple Music for Windows
-            // refreshes its GSMTC thumbnail projection during this state change
-            // on builds that otherwise hold the previous/null thumbnail for tens
-            // of seconds after a transport skip.
             _metadataDirty = true;
             _metadataProbeRequested = true;
             _artworkDirty = true;
@@ -608,8 +661,6 @@ internal sealed class MediaSessionResolver : IDisposable
             _artworkDirty = true;
             _artworkRetryUntil = DateTimeOffset.UtcNow + ArtworkRetryDuration;
         }
-        // The association guard needs a second observation at least 350 ms
-        // later when Windows does not send another media-properties event.
         await Task.Delay(380);
         await UpdateSnapshotAsync();
         FinishPlaybackArtworkPulseAttempt(
@@ -812,7 +863,7 @@ internal sealed class MediaSessionResolver : IDisposable
         lock (_requestGate)
         {
             _identityChangedAt = now;
-            _artworkFetchNotBefore = hadPreviousTrack ? now + TimeSpan.FromMilliseconds(750) : now;
+            _artworkFetchNotBefore = hadPreviousTrack ? now + ArtworkTransitionSettleDelay : now;
             _forcedProjectionStage = 0;
             _rapidProbeUntil = now + RapidProbeDuration;
             if (!_disposed) _rapidProbeTimer.Change(250, 250);

@@ -55,7 +55,9 @@ export const DEFAULT_VOLUME_SETTINGS: Required<VolumeSettings> = {
 };
 
 export function volumeSettings(settings: VolumeSettings): Required<VolumeSettings> {
-  return { volumeStepPercent: clampInteger(settings.volumeStepPercent, 1, 10, 2) };
+  return {
+    volumeStepPercent: clampInteger(settings.volumeStepPercent, 1, 10, DEFAULT_VOLUME_SETTINGS.volumeStepPercent)
+  };
 }
 
 export function clampInteger(value: unknown, min: number, max: number, fallback: number): number {
@@ -85,6 +87,13 @@ export function interpolatedPosition(state: BridgeState, receivedAt: number, now
   const base = media.positionMs ?? 0;
   const advanced = media.playbackStatus === "playing" ? Math.max(0, now - receivedAt) : 0;
   return Math.min(media.durationMs ?? Number.MAX_SAFE_INTEGER, base + advanced);
+}
+
+export function sampledNewPosition(previous: MediaState, next: MediaState): boolean {
+  return next.positionMs !== previous.positionMs ||
+    next.playbackStatus !== previous.playbackStatus ||
+    next.title !== previous.title ||
+    next.available !== previous.available;
 }
 
 export function hasSelectedTrack(media: MediaState): boolean {

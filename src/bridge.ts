@@ -2,7 +2,7 @@ import { EventEmitter } from "node:events";
 import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import type { BridgeMessage, BridgeState } from "./model.js";
+import { sampledNewPosition, type BridgeMessage, type BridgeState } from "./model.js";
 
 export type BridgeCommand = "toggle" | "next" | "previous" | "volume" | "toggleMute" | "refresh";
 
@@ -23,13 +23,14 @@ export class BridgeSupervisor extends EventEmitter {
   #restartAttempt = 0;
   #nextCommandId = 1;
   #lastMessageAt = 0;
+  #positionSampledAt = 0;
   #connected = false;
   #state: BridgeState = EMPTY_STATE;
   #lastStateRevision = 0;
   #pendingCommands = new Map<number, { name: BridgeCommand; createdAt: number }>();
 
   get state(): BridgeState { return this.#state; }
-  get stateReceivedAt(): number { return this.#lastMessageAt; }
+  get stateReceivedAt(): number { return this.#positionSampledAt; }
   get connected(): boolean { return this.#connected; }
 
   start(): void {
@@ -124,6 +125,7 @@ export class BridgeSupervisor extends EventEmitter {
         if (message.type === "hello") {
           if (message.protocol !== 1) throw new Error(`Unsupported helper protocol ${message.protocol}`);
           this.#lastStateRevision = 0;
+          this.#positionSampledAt = 0;
           this.#connected = true;
           this.#restartAttempt = 0;
           this.emit("connection", true);
@@ -138,6 +140,9 @@ export class BridgeSupervisor extends EventEmitter {
               message.media.artworkKey &&
               message.media.artworkKey === this.#state.media.artworkKey) {
             message.media.artworkDataUri = this.#state.media.artworkDataUri;
+          }
+          if (this.#positionSampledAt === 0 || sampledNewPosition(this.#state.media, message.media)) {
+            this.#positionSampledAt = this.#lastMessageAt;
           }
           this.#state = message;
           this.emit("state", message);

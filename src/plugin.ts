@@ -16,7 +16,6 @@ import {
   hasSelectedTrack,
   interpolatedPosition,
   marqueeText,
-  type BridgeState,
   type PlaybackSettings,
   type VolumeSettings,
   volumeSettings
@@ -38,7 +37,6 @@ bridge.on("state", () => {
   if (optimisticVolume && bridge.state.revision > optimisticVolume.originRevision) {
     const actual = bridge.state.audio.volumePercent;
     if (actual !== undefined && Math.abs(actual - optimisticVolume.value) <= 1) clearOptimisticVolume();
-    else if (Date.now() >= optimisticVolume.expiresAt) clearOptimisticVolume();
   }
   renderAll();
 });
@@ -177,6 +175,8 @@ function renderVolumeTargets(): void {
   }
 }
 
+const OPTIMISTIC_VOLUME_MS = 1_200;
+
 function showOptimisticVolume(delta: number): void {
   const now = Date.now();
   const current = optimisticVolume && now < optimisticVolume.expiresAt
@@ -187,14 +187,14 @@ function showOptimisticVolume(delta: number): void {
   optimisticVolume = {
     value,
     originRevision: bridge.state.revision,
-    expiresAt: now + 5_000
+    expiresAt: now + OPTIMISTIC_VOLUME_MS
   };
   if (optimisticVolumeTimer) clearTimeout(optimisticVolumeTimer);
   optimisticVolumeTimer = setTimeout(() => {
     optimisticVolumeTimer = undefined;
     clearOptimisticVolume();
     renderVolumeTargets();
-  }, 5_000);
+  }, OPTIMISTIC_VOLUME_MS);
   renderVolumeTargets();
 }
 
@@ -254,7 +254,7 @@ class VolumeAction extends SingletonAction<VolumeSettings> {
     const id = ev.action.id;
     volumeTargets.set(id, ev.action);
     this.#settings.set(id, volumeSettings(ev.payload.settings));
-    this.#coalescers.set(id, new TickCoalescer(ticks => this.#flush(id, ticks)));
+    this.#coalescers.set(id, new TickCoalescer(ticks => this.#flush(id, ticks), 28, 60));
     renderVolumeTargets();
   }
 

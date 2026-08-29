@@ -1,3 +1,8 @@
+# Requires PowerShell 7+: these scripts read the helper stdout with
+# ReadLineAsync, which never completes against a redirected pipe on the
+# Windows PowerShell 5.1 host and would otherwise stall until the timeout.
+#Requires -Version 7.0
+
 param(
     [ValidateRange(3, 30)]
     [int]$ObservationSeconds = 10,
