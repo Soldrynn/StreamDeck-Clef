@@ -48,7 +48,7 @@ internal static class Program
         {
             await using var service = new BridgeService();
             service.StateChanged += snapshot => Write(snapshot, droppable: true);
-            Write(new { type = "hello", protocol = 1, version = "1.0.0.0" });
+            Write(new { type = "hello", protocol = 1, version = "1.0.0.1" });
             await service.InitializeAsync();
 
             await foreach (var line in ReadCommandLinesAsync())
