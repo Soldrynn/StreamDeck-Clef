@@ -10,3 +10,7 @@ com.davedev.clef.sdPlugin/THIRD_PARTY_NOTICES.md
 helper/**/bin/
 helper/**/obj/
 *.log
+
+# Gallery render scratch
+branding/work/out/
+branding/work/pkg/
