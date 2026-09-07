@@ -49,6 +49,185 @@
         }
       ],
       "UUID": "com.davedev.clef.volume"
+    },
+    {
+      "Controllers": [
+        "Keypad"
+      ],
+      "Icon": "assets/actions/key-play-pause-list",
+      "Name": "Play / Pause",
+      "States": [
+        {
+          "Image": "assets/actions/key-play"
+        },
+        {
+          "Image": "assets/actions/key-pause"
+        }
+      ],
+      "UUID": "com.davedev.clef.key.playpause",
+      "DisableAutomaticStates": true,
+      "Tooltip": "Play or pause Apple Music for Windows. The key shows the current playback state."
+    },
+    {
+      "Controllers": [
+        "Keypad"
+      ],
+      "Icon": "assets/actions/key-next-list",
+      "Name": "Next Track",
+      "States": [
+        {
+          "Image": "assets/actions/key-next"
+        }
+      ],
+      "UUID": "com.davedev.clef.key.next",
+      "Tooltip": "Skip to the next track in Apple Music for Windows."
+    },
+    {
+      "Controllers": [
+        "Keypad"
+      ],
+      "Icon": "assets/actions/key-previous-list",
+      "Name": "Previous Track",
+      "States": [
+        {
+          "Image": "assets/actions/key-previous"
+        }
+      ],
+      "UUID": "com.davedev.clef.key.previous",
+      "Tooltip": "Go back to the previous track in Apple Music for Windows."
+    },
+    {
+      "Controllers": [
+        "Keypad"
+      ],
+      "Icon": "assets/actions/key-volume-up-list",
+      "Name": "Volume Up",
+      "States": [
+        {
+          "Image": "assets/actions/key-volume-up"
+        }
+      ],
+      "UUID": "com.davedev.clef.key.volumeup",
+      "PropertyInspectorPath": "ui/volume-key.html",
+      "Tooltip": "Raise only the Apple Music for Windows volume. Hold to keep raising."
+    },
+    {
+      "Controllers": [
+        "Keypad"
+      ],
+      "Icon": "assets/actions/key-volume-down-list",
+      "Name": "Volume Down",
+      "States": [
+        {
+          "Image": "assets/actions/key-volume-down"
+        }
+      ],
+      "UUID": "com.davedev.clef.key.volumedown",
+      "PropertyInspectorPath": "ui/volume-key.html",
+      "Tooltip": "Lower only the Apple Music for Windows volume. Hold to keep lowering."
+    },
+    {
+      "Controllers": [
+        "Keypad"
+      ],
+      "Icon": "assets/actions/key-mute-list",
+      "Name": "Mute",
+      "States": [
+        {
+          "Image": "assets/actions/key-unmuted"
+        },
+        {
+          "Image": "assets/actions/key-muted"
+        }
+      ],
+      "UUID": "com.davedev.clef.key.mute",
+      "DisableAutomaticStates": true,
+      "Tooltip": "Mute or unmute Apple Music for Windows without changing the system volume."
+    },
+    {
+      "Controllers": [
+        "Keypad"
+      ],
+      "Icon": "assets/actions/key-now-playing-list",
+      "Name": "Now Playing",
+      "States": [
+        {
+          "Image": "assets/actions/key-now-playing"
+        }
+      ],
+      "UUID": "com.davedev.clef.key.nowplaying",
+      "SupportedInMultiActions": false,
+      "UserTitleEnabled": false,
+      "Tooltip": "Shows album artwork, title, artist, and progress. Press to play or pause."
+    },
+    {
+      "Controllers": [
+        "Keypad"
+      ],
+      "Icon": "assets/actions/key-shuffle-list",
+      "Name": "Shuffle",
+      "States": [
+        {
+          "Image": "assets/actions/key-shuffle-off"
+        },
+        {
+          "Image": "assets/actions/key-shuffle-on"
+        }
+      ],
+      "UUID": "com.davedev.clef.key.shuffle",
+      "DisableAutomaticStates": true,
+      "Tooltip": "Turn shuffle on or off in Apple Music for Windows. The key shows the current state."
+    },
+    {
+      "Controllers": [
+        "Keypad"
+      ],
+      "Icon": "assets/actions/key-repeat-list",
+      "Name": "Repeat",
+      "States": [
+        {
+          "Image": "assets/actions/key-repeat-off"
+        },
+        {
+          "Image": "assets/actions/key-repeat-all"
+        },
+        {
+          "Image": "assets/actions/key-repeat-one"
+        }
+      ],
+      "UUID": "com.davedev.clef.key.repeat",
+      "DisableAutomaticStates": true,
+      "Tooltip": "Cycle repeat through off, all, and one in Apple Music for Windows. The key shows the current mode."
+    },
+    {
+      "Controllers": [
+        "Keypad"
+      ],
+      "Icon": "assets/actions/key-favorite-list",
+      "Name": "Favorite",
+      "States": [
+        {
+          "Image": "assets/actions/key-favorite"
+        }
+      ],
+      "UUID": "com.davedev.clef.key.favorite",
+      "Tooltip": "Favorite the song playing in Apple Music for Windows."
+    },
+    {
+      "Controllers": [
+        "Keypad"
+      ],
+      "Icon": "assets/actions/key-playlist-list",
+      "Name": "Play Playlist",
+      "States": [
+        {
+          "Image": "assets/actions/key-playlist"
+        }
+      ],
+      "UUID": "com.davedev.clef.key.playlist",
+      "PropertyInspectorPath": "ui/playlist.html",
+      "SupportedInMultiActions": false,
+      "Tooltip": "Start one of your library playlists in Apple Music for Windows."
     }
   ],
   "ApplicationsToMonitor": {
@@ -61,7 +240,7 @@
   "Category": "Clef",
   "CategoryIcon": "assets/category",
   "CodePath": "bin/plugin.js",
-  "Description": "Clef controls Apple Music for Windows playback and app volume with Stream Deck + dials on Windows 11.",
+  "Description": "Clef controls Apple Music for Windows playback and app volume from Stream Deck keys and Stream Deck + dials on Windows 11.",
   "Icon": "assets/plugin-icon",
   "Name": "Clef",
   "Nodejs": {
@@ -78,5 +257,5 @@
     "MinimumVersion": "7.1"
   },
   "UUID": "com.davedev.clef",
-  "Version": "1.0.0.1"
+  "Version": "1.1.0.0"
 }

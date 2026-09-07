@@ -20,12 +20,42 @@ export interface AudioState {
   bindingKind?: "amp-agent-process" | "amp-agent-alias";
 }
 
+export type RepeatMode = "off" | "all" | "one" | "unknown";
+
+/** Controls reached through Apple Music's interface (UI Automation) rather than the media session. */
+export interface UiState {
+  available: boolean;
+  shuffleActive?: boolean;
+  repeatMode?: RepeatMode;
+}
+
 export interface BridgeState {
   type: "state";
   revision: number;
   timestampUtc: string;
   media: MediaState;
   audio: AudioState;
+  ui?: UiState;
+}
+
+export interface PlaylistSettings {
+  [key: string]: string | number | boolean | null | undefined;
+  playlistId?: string;
+  playlistName?: string;
+  /** Set once the user edits or clears the title; the plugin then stops auto-filling it. */
+  titleTouched?: boolean;
+}
+
+/** Title the Play Playlist key should display, or undefined to leave the user's own title in place. */
+export function playlistAutoTitle(settings: PlaylistSettings): string | undefined {
+  if (settings.titleTouched) return undefined;
+  const name = settings.playlistName;
+  return typeof name === "string" && name ? name : undefined;
+}
+
+/** Manifest state index for the Repeat key: 0 off, 1 all, 2 one. */
+export function repeatStateIndex(mode: RepeatMode | undefined): number {
+  return mode === "all" ? 1 : mode === "one" ? 2 : 0;
 }
 
 export interface BridgeHello {
@@ -39,6 +69,7 @@ export type BridgeMessage = BridgeState | BridgeHello | {
   id: number;
   ok: boolean;
   error?: string;
+  data?: unknown;
 };
 
 export interface PlaybackSettings {
@@ -114,4 +145,19 @@ export function marqueeText(value: string, width: number, elapsedMs: number): st
   const tape = [...characters, ...spacer];
   const step = Math.floor((elapsedMs - 1_400) / 350) % tape.length;
   return [...tape, ...tape].slice(step, step + width).join("");
+}
+
+export interface VolumeKeySettings {
+  [key: string]: string | number | boolean | null | undefined;
+  volumeStepPercent?: number;
+}
+
+export const DEFAULT_VOLUME_KEY_SETTINGS: Required<VolumeKeySettings> = {
+  volumeStepPercent: 5
+};
+
+export function volumeKeySettings(settings: VolumeKeySettings): Required<VolumeKeySettings> {
+  return {
+    volumeStepPercent: clampInteger(settings.volumeStepPercent, 1, 10, DEFAULT_VOLUME_KEY_SETTINGS.volumeStepPercent)
+  };
 }

@@ -4,14 +4,31 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { sampledNewPosition, type BridgeMessage, type BridgeState } from "./model.js";
 
-export type BridgeCommand = "toggle" | "next" | "previous" | "volume" | "toggleMute" | "refresh";
+export type BridgeCommand =
+  | "toggle" | "next" | "previous" | "volume" | "toggleMute" | "refresh"
+  | "shuffle" | "repeat" | "favorite" | "playPlaylist" | "listPlaylists";
+
+export interface CommandOptions {
+  amount?: number;
+  target?: string;
+}
+
+interface PendingCommand {
+  name: BridgeCommand;
+  createdAt: number;
+  resolve?: (data: unknown) => void;
+  reject?: (error: Error) => void;
+}
+
+const REQUEST_TIMEOUT_MS = 10_000;
 
 const EMPTY_STATE: BridgeState = {
   type: "state",
   revision: 0,
   timestampUtc: new Date(0).toISOString(),
   media: { available: false },
-  audio: { available: false }
+  audio: { available: false },
+  ui: { available: false }
 };
 
 export class BridgeSupervisor extends EventEmitter {
@@ -27,7 +44,7 @@ export class BridgeSupervisor extends EventEmitter {
   #connected = false;
   #state: BridgeState = EMPTY_STATE;
   #lastStateRevision = 0;
-  #pendingCommands = new Map<number, { name: BridgeCommand; createdAt: number }>();
+  #pendingCommands = new Map<number, PendingCommand>();
 
   get state(): BridgeState { return this.#state; }
   get stateReceivedAt(): number { return this.#positionSampledAt; }
@@ -49,31 +66,69 @@ export class BridgeSupervisor extends EventEmitter {
     this.#child = undefined;
   }
 
-  command(name: BridgeCommand, amount?: number): boolean {
+  /** Sends a fire-and-forget command. Failures surface through the "commandError" event. */
+  command(name: BridgeCommand, amount?: number, target?: string): boolean {
+    return this.#send(name, { amount, target }) !== undefined;
+  }
+
+  /** Sends a command and resolves with the helper's reply data, or rejects with its error. */
+  request(name: BridgeCommand, options: CommandOptions = {}): Promise<unknown> {
+    return new Promise((resolve, reject) => {
+      let timer: NodeJS.Timeout | undefined;
+      const settle = (fn: (value: any) => void) => (value: any) => {
+        if (timer) clearTimeout(timer);
+        fn(value);
+      };
+      const id = this.#send(name, options, settle(resolve), settle(reject));
+      if (id === undefined) {
+        reject(new Error("Helper is not connected."));
+        return;
+      }
+      timer = setTimeout(() => {
+        const pending = this.#pendingCommands.get(id);
+        this.#pendingCommands.delete(id);
+        pending?.reject?.(new Error("Helper did not reply in time."));
+      }, REQUEST_TIMEOUT_MS);
+      timer.unref();
+    });
+  }
+
+  #send(
+    name: BridgeCommand,
+    options: CommandOptions,
+    resolve?: (data: unknown) => void,
+    reject?: (error: Error) => void
+  ): number | undefined {
     const child = this.#child;
-    if (!child || !this.#connected || !child.stdin.writable || child.stdin.destroyed) return false;
+    if (!child || !this.#connected || !child.stdin.writable || child.stdin.destroyed) return undefined;
     this.#prunePendingCommands();
     if (this.#pendingCommands.size >= 64) {
       this.emit("log", "Helper command queue reached its safety limit.");
-      return false;
+      return undefined;
     }
     const id = this.#nextCommandId++;
-    const payload = { type: "command", id, name, ...(amount === undefined ? {} : { amount }) };
-    this.#pendingCommands.set(id, { name, createdAt: Date.now() });
+    const payload = {
+      type: "command",
+      id,
+      name,
+      ...(options.amount === undefined ? {} : { amount: options.amount }),
+      ...(options.target === undefined ? {} : { target: options.target })
+    };
+    this.#pendingCommands.set(id, { name, createdAt: Date.now(), resolve, reject });
+    const fail = (message: string): void => {
+      this.#pendingCommands.delete(id);
+      this.emit("log", message);
+      reject?.(new Error(message));
+      child.kill();
+    };
     try {
       child.stdin.write(`${JSON.stringify(payload)}\n`, error => {
-        if (error && this.#child === child) {
-          this.#pendingCommands.delete(id);
-          this.emit("log", `Helper command pipe failed: ${error.message}`);
-          child.kill();
-        }
+        if (error && this.#child === child) fail(`Helper command pipe failed: ${error.message}`);
       });
-      return true;
+      return id;
     } catch (error) {
-      this.#pendingCommands.delete(id);
-      this.emit("log", `Helper command write failed: ${String(error)}`);
-      child.kill();
-      return false;
+      fail(`Helper command write failed: ${String(error)}`);
+      return undefined;
     }
   }
 
@@ -99,7 +154,10 @@ export class BridgeSupervisor extends EventEmitter {
         if (this.#child === child) child.kill();
       });
       child.once("error", error => this.emit("log", `Helper launch failed: ${error.message}`));
-      child.once("exit", (code, signal) => this.#onExit(code, signal));
+      // "close" follows both a normal exit and a failed spawn; "exit" alone misses the latter.
+      child.once("close", (code, signal) => {
+        if (this.#child === child || this.#child === undefined) this.#onExit(code, signal);
+      });
     } catch (error) {
       this.emit("log", `Helper launch failed: ${String(error)}`);
       this.#scheduleRestart();
@@ -146,14 +204,19 @@ export class BridgeSupervisor extends EventEmitter {
           }
           this.#state = message;
           this.emit("state", message);
-        } else {
-          const name = this.#pendingCommands.get(message.id)?.name;
+        } else if (message.type === "ack") {
+          const pending = this.#pendingCommands.get(message.id);
           this.#pendingCommands.delete(message.id);
-          if (!message.ok) {
+          if (message.ok) {
+            pending?.resolve?.(message.data);
+          } else {
             const error = message.error ?? "unknown error";
             this.emit("log", `Command ${message.id} failed: ${error}`);
-            this.emit("commandError", { name, error });
+            if (pending?.reject) pending.reject(new Error(error));
+            else this.emit("commandError", { name: pending?.name, error });
           }
+        } else {
+          this.emit("log", `Ignored unknown helper message type ${String((message as { type?: unknown }).type)}.`);
         }
       } catch (error) {
         this.emit("log", `Ignored malformed helper output: ${String(error)}`);
@@ -164,6 +227,7 @@ export class BridgeSupervisor extends EventEmitter {
   #onExit(code: number | null, signal: NodeJS.Signals | null): void {
     this.#child = undefined;
     this.#connected = false;
+    for (const pending of this.#pendingCommands.values()) pending.reject?.(new Error("Helper exited."));
     this.#pendingCommands.clear();
     this.emit("connection", false);
     if (!this.#stopping) {
@@ -197,9 +261,15 @@ export class BridgeSupervisor extends EventEmitter {
   }
 
   #prunePendingCommands(): void {
-    const cutoff = Date.now() - 30_000;
+    const now = Date.now();
     for (const [id, command] of this.#pendingCommands) {
-      if (command.createdAt < cutoff) this.#pendingCommands.delete(id);
+      const age = now - command.createdAt;
+      if (command.reject && age > REQUEST_TIMEOUT_MS) {
+        this.#pendingCommands.delete(id);
+        command.reject(new Error("Helper did not reply in time."));
+      } else if (age > 30_000) {
+        this.#pendingCommands.delete(id);
+      }
     }
   }
 }

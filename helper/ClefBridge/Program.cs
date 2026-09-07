@@ -48,7 +48,7 @@ internal static class Program
         {
             await using var service = new BridgeService();
             service.StateChanged += snapshot => Write(snapshot, droppable: true);
-            Write(new { type = "hello", protocol = 1, version = "1.0.0.1" });
+            Write(new { type = "hello", protocol = 1, version = "1.1.0.0" });
             await service.InitializeAsync();
 
             await foreach (var line in ReadCommandLinesAsync())
@@ -59,8 +59,8 @@ internal static class Program
                 {
                     command = JsonSerializer.Deserialize<CommandMessage>(line, JsonOptions);
                     if (command?.Type != "command") throw new InvalidOperationException("Expected a command message.");
-                    await service.ExecuteAsync(command);
-                    Write(new { type = "ack", id = command.Id, ok = true });
+                    var data = await service.ExecuteAsync(command);
+                    Write(new { type = "ack", id = command.Id, ok = true, data });
                 }
                 catch (Exception ex)
                 {

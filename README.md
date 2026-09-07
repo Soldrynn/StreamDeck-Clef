@@ -3,18 +3,22 @@
 ![Clef app icon](com.davedev.clef.sdPlugin/assets/plugin-icon.png)
 
 [![Windows 11](https://img.shields.io/badge/Windows-11-555555)](https://www.microsoft.com/windows/windows-11)
-[![Stream Deck +](https://img.shields.io/badge/Stream%20Deck-%2B-555555)](https://www.elgato.com/us/en/p/stream-deck-plus-black)
+[![Stream Deck](https://img.shields.io/badge/Stream%20Deck-keys%20%2B%20dials-555555)](https://www.elgato.com/us/en/s/stream-deck)
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-555555)](LICENSE)
 
-Clef controls Apple Music for Windows from the dials and touch strip on an
-Elgato Stream Deck +. Use Clef to skip tracks, play or pause, adjust only the
-app's volume, mute the app, and view live track information. Clef uses direct
-Windows APIs instead of keyboard shortcuts or simulated clicks.
+Clef controls Apple Music for Windows from any Elgato Stream Deck. Keys work on
+every model, and the dials and touch strip on a Stream Deck + add live track
+information. Use Clef to skip tracks, play or pause, adjust only the app's
+volume, mute the app, and view what's playing. Clef uses direct Windows APIs
+instead of keyboard shortcuts or simulated clicks.
 
 ## Features
 
 Clef provides the following features:
 
+- Key actions for every Stream Deck: Play / Pause, Next Track, Previous Track,
+  Volume Up, Volume Down, Mute, Shuffle, Repeat, Favorite, Play Playlist, and a
+  Now Playing key with album artwork.
 - Native playback control through Windows media-session APIs.
 - Per-app volume and mute control that does not change the system volume.
 - Automatic recovery when Apple Music for Windows, Stream Deck, or Windows
@@ -24,8 +28,9 @@ Clef provides the following features:
 - Live title, artist, progress, volume, mute, and connection feedback.
 - Album artwork with protection against delayed covers appearing on the wrong
   track.
-- Independent settings for each Volume Controls action.
-- A transparent, modern grayscale design for the Stream Deck + touch
+- Independent settings for each Volume Controls and Volume key action.
+- Hold-to-repeat volume keys and state-aware Play / Pause and Mute keys.
+- A transparent, modern grayscale design for keys and the Stream Deck + touch
   strip.
 
 ## Requirements
@@ -34,7 +39,7 @@ To use Clef, you need the following software and hardware:
 
 - Windows 11 on an x64 computer.
 - Elgato Stream Deck 7.1 or later.
-- Elgato Stream Deck +.
+- Any Elgato Stream Deck with keys, or a Stream Deck + for the dial actions.
 - Apple Music for Windows.
 
 Clef does not support Windows on ARM64. The installer includes a self-contained
@@ -49,15 +54,58 @@ To install Clef, do the following:
 2. Double-click the downloaded file.
 3. In Stream Deck, approve the installation.
 4. In the Stream Deck action list, expand the **Clef** category.
-5. Drag **Playback Controls** or **Volume Controls** onto a Stream Deck + dial.
+5. Drag a key action such as **Play / Pause** or **Now Playing** onto any key,
+   or drag **Playback Controls** or **Volume Controls** onto a Stream Deck +
+   dial.
 6. Open Apple Music for Windows and play a song for a few seconds.
 
 Clef starts its local Windows helper automatically. Playing a song once lets
 Windows create the media and audio sessions that Clef controls.
 
-## Use the controls
+## Use the key actions
 
-Both actions use the same interaction pattern:
+Key actions work on every Stream Deck model, including the keys on a Stream
+Deck +:
+
+| Key action | Press | Shows |
+| --- | --- | --- |
+| Play / Pause | Play or pause | The current playback state |
+| Next Track | Skip to the next track | Static icon |
+| Previous Track | Go to the previous track | Static icon |
+| Volume Up | Raise only the app volume; hold to keep raising | Static icon |
+| Volume Down | Lower only the app volume; hold to keep lowering | Static icon |
+| Mute | Mute or unmute the app | The current mute state |
+| Now Playing | Play or pause | Album artwork, title, artist, and progress |
+| Shuffle | Turn shuffle on or off | The current shuffle state |
+| Repeat | Cycle repeat: off, all, one | The current repeat mode |
+| Favorite | Favorite the current song | A checkmark when Apple Music accepts it |
+| Play Playlist | Start the chosen library playlist | The playlist name until you edit or clear the title |
+
+To change how much a volume key changes the volume per press, select **Volume
+Up** or **Volume Down** in Stream Deck, and then choose a value from 1% to
+10%. The default step is 5%.
+
+To choose a playlist, select **Play Playlist** in Stream Deck, and then pick
+one of your library playlists from the list. The list comes from the sidebar
+of Apple Music for Windows, so the app must be open. Use the refresh button
+next to the list after you add a playlist.
+
+### Interface-based keys
+
+Windows does not expose shuffle, repeat, favorites, or playlists through its
+media-session API, so Shuffle, Repeat, Favorite, and Play Playlist reach the
+matching controls inside Apple Music for Windows through UI Automation, the
+accessibility API that screen readers use. Clef sends no keystrokes or mouse
+input, and the Apple Music window can stay minimized. These keys need the
+Apple Music window to exist, and an Apple Music update that changes its
+controls can stop them until Clef is updated. The Repeat key reads the mode
+from the control's English name, so on other display languages it still
+cycles repeat but shows the off icon. The Favorite key finds its button by
+the English name "Favorite" and needs an English display language.
+
+## Use the dial actions
+
+Both dial actions use the same interaction pattern:
 
 | Action | Rotate left | Rotate right | Press or touch |
 | --- | --- | --- | --- |
@@ -118,10 +166,12 @@ and include the Windows, Stream Deck, Apple Music for Windows, and Clef versions
 
 ## Known limitations
 
-- Clef supports only Windows 11 x64 and Stream Deck +.
+- Clef supports only Windows 11 x64. Dial actions require a Stream Deck +.
 - Apple Music for Windows does not provide reliable public seeking through its
   Windows media session, so Clef does not provide seek controls.
 - Windows controls when album artwork becomes available.
+- Shuffle, Repeat, Favorite, and Play Playlist depend on the Apple Music for
+  Windows interface and can break when Apple changes it.
 - The artwork-refresh fallback can cause a brief playback interruption after a
   dial skip.
 - Clef does not use Apple logos, Apple artwork, keyboard automation, mouse

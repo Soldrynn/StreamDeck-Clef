@@ -9,6 +9,7 @@ import streamDeck, {
   WillDisappearEvent
 } from "@elgato/streamdeck";
 import { BridgeSupervisor } from "./bridge.js";
+import { registerKeyActions } from "./keys.js";
 import { LatestValuePump } from "./latest-value-pump.js";
 import {
   adjustedVolume,
@@ -48,20 +49,37 @@ bridge.on("connection", (connected: boolean) => {
   renderAll();
 });
 bridge.on("commandError", ({ name }: { name?: string }) => {
-  const targets = name === "volume" || name === "toggleMute" ? volumeTargets : playbackTargets;
   if (name === "volume") clearOptimisticVolume();
+  const targets = name === "volume" || name === "toggleMute" ? volumeTargets
+    : name === "toggle" || name === "next" || name === "previous" ? playbackTargets
+    : undefined;
+  if (!targets) return;
   for (const target of targets.values()) void target.showAlert();
 });
+
+// Feedback calls can reject if the Stream Deck socket drops; that must not take the process down.
+process.on("unhandledRejection", reason => streamDeck.logger.info(`Unhandled rejection: ${String(reason)}`));
 
 const progressTimer = setInterval(() => {
   if (playbackTargets.size > 0 && bridge.connected &&
       (bridge.state.media.playbackStatus === "playing" || hasOverflowingText())) renderPlaybackTargets();
+  keys.tick();
 }, 350);
 progressTimer.unref();
 
 function renderAll(): void {
   renderPlaybackTargets();
   renderVolumeTargets();
+  keys.render();
+}
+
+/** Sends a relative app-volume change and mirrors it optimistically on any volume dials. */
+function adjustVolume(delta: number): boolean {
+  showOptimisticVolume(delta);
+  if (bridge.command("volume", delta)) return true;
+  clearOptimisticVolume();
+  renderVolumeTargets();
+  return false;
 }
 
 function queueFeedback(id: string, target: any, feedback: Record<string, string | number | object>): void {
@@ -295,18 +313,13 @@ class VolumeAction extends SingletonAction<VolumeSettings> {
 
   #flush(id: string, ticks: number): void {
     const settings = this.#settings.get(id) ?? volumeSettings({});
-    const delta = ticks * settings.volumeStepPercent;
-    showOptimisticVolume(delta);
-    if (!bridge.command("volume", delta)) {
-      clearOptimisticVolume();
-      renderVolumeTargets();
-      void volumeTargets.get(id)?.showAlert();
-    }
+    if (!adjustVolume(ticks * settings.volumeStepPercent)) void volumeTargets.get(id)?.showAlert();
   }
 }
 
 streamDeck.actions.registerAction(new PlaybackAction());
 streamDeck.actions.registerAction(new VolumeAction());
+const keys = registerKeyActions({ bridge, adjustVolume });
 bridge.start();
 
 process.once("exit", () => bridge.stop());

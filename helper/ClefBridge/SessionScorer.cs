@@ -132,6 +132,10 @@ internal static class ResolverSelfTests
         CoreAudioCallbackSelfTests.Run();
         MemorySafetySelfTests.Run();
         ArtworkAssociationSelfTests.Run();
+        Require(UiAutomationResolver.RepeatModeFromName("Repeat All") == "all", "repeat all name");
+        Require(UiAutomationResolver.RepeatModeFromName("Repeat One") == "one", "repeat one name");
+        Require(UiAutomationResolver.RepeatModeFromName("Do Not Repeat") == "off", "repeat off name");
+        Require(UiAutomationResolver.RepeatModeFromName("Wiederholen") == "unknown", "unlocalized repeat name");
         Require(SessionScorer.ScoreMedia("AppleMusic.exe", false, false) >= 100, "Apple Music for Windows media identity");
         Require(SessionScorer.ScoreMedia("Spotify.exe", true, true) < 70, "unrelated current media session");
 

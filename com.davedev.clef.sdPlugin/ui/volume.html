@@ -2,19 +2,26 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Volume settings</title>
-  <link rel="stylesheet" href="property-inspector.css">
+  <title>Volume Controls settings</title>
+  <script src="sdpi-components.js"></script>
 </head>
-<body data-action="volume">
-  <section class="panel">
-    <h1>Volume Controls</h1>
-    <div class="field">
-      <label for="step">Rotation Controls <span class="value" data-value-for="volumeStepPercent"></span></label>
-      <p class="description">How much should the volume change when you rotate the knob left/right?</p>
-      <input id="step" type="range" min="1" max="10" step="1" data-setting="volumeStepPercent" data-suffix="%">
-    </div>
-  </section>
-  <script src="property-inspector.js"></script>
+<body>
+  <sdpi-item label="Volume step">
+    <sdpi-select setting="volumeStepPercent" value-type="number" default="2">
+      <option value="1">1%</option>
+      <option value="2">2%</option>
+      <option value="3">3%</option>
+      <option value="4">4%</option>
+      <option value="5">5%</option>
+      <option value="6">6%</option>
+      <option value="7">7%</option>
+      <option value="8">8%</option>
+      <option value="9">9%</option>
+      <option value="10">10%</option>
+    </sdpi-select>
+  </sdpi-item>
+  <sdpi-item>
+    <small>How much rotating the dial changes only the Apple Music for Windows volume per step.</small>
+  </sdpi-item>
 </body>
 </html>

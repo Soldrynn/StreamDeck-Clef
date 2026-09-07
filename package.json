@@ -1,6 +1,6 @@
 {
   "name": "stream-deck-clef",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
   "type": "module",
   "description": "Clef provides Stream Deck + controls for Apple Music for Windows on Windows 11.",

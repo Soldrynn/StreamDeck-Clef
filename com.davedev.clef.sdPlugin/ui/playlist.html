@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Play Playlist settings</title>
+  <script src="sdpi-components.js"></script>
+</head>
+<body>
+  <sdpi-item label="Playlist">
+    <sdpi-select setting="playlistId" label-setting="playlistName" datasource="getPlaylists" show-refresh placeholder="Choose a playlist" loading="Reading your library…"></sdpi-select>
+  </sdpi-item>
+  <sdpi-item>
+    <small>Playlists come from the sidebar of Apple Music for Windows, which must be open. Use the refresh button after adding a playlist. The key title is filled with the playlist name; edit or clear the title to use your own.</small>
+  </sdpi-item>
+</body>
+</html>

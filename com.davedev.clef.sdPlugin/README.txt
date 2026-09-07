@@ -1,7 +1,24 @@
-Clef v1.0
+Clef v1.1
 
-Windows 11 x64 | Stream Deck 7.1+ | Stream Deck +
+Windows 11 x64 | Stream Deck 7.1+ | Every Stream Deck with keys, plus Stream Deck + dials
 
+Keys (any Stream Deck)
+- Play / Pause: toggles playback and shows the current state.
+- Next Track / Previous Track: skip within the current queue.
+- Volume Up / Volume Down: change only Apple Music for Windows volume by
+  1-10% per press. Hold the key to keep adjusting.
+- Mute: mutes or unmutes Apple Music for Windows and shows the current state.
+- Now Playing: album artwork, title, artist, and progress. Press to play or pause.
+- Shuffle: turns shuffle on or off and shows the current state.
+- Repeat: cycles repeat through off, all, and one and shows the current mode.
+- Favorite: favorites the current song.
+- Play Playlist: starts a library playlist chosen in the key settings.
+
+Shuffle, Repeat, Favorite, and Play Playlist use the Apple Music for Windows
+interface (UI Automation, no keyboard or mouse input). The app window must be
+open but can stay minimized.
+
+Dials (Stream Deck +)
 Playback Controls
 - Press or touch: play or pause.
 - Rotate: play the previous or next track.

@@ -6,6 +6,7 @@ internal sealed class BridgeService : IAsyncDisposable
 {
     private readonly MediaSessionResolver _media = new();
     private readonly CoreAudioResolver _audio = new();
+    private readonly UiAutomationResolver _ui = new();
     private readonly SemaphoreSlim _commandLock = new(1, 1);
     private readonly object _stateGate = new();
     private readonly CancellationTokenSource _lifetime = new();
@@ -19,19 +20,26 @@ internal sealed class BridgeService : IAsyncDisposable
     {
         _media.Changed += RequestPublish;
         _audio.Changed += RequestPublish;
+        _ui.Changed += RequestPublish;
         await _media.InitializeAsync();
         await _audio.InitializeAsync();
+        await _ui.RefreshAsync();
         _watchdog = WatchdogAsync(_lifetime.Token);
         Publish();
     }
 
-    public async Task ExecuteAsync(CommandMessage command)
+    public async Task<object?> ExecuteAsync(CommandMessage command)
     {
         await _commandLock.WaitAsync();
         try
         {
             switch (command.Name)
             {
+                case "shuffle": await _ui.SetShuffleAsync(Flag(command.Amount)); break;
+                case "repeat": await _ui.SetRepeatAsync(command.Target); break;
+                case "favorite": await _ui.FavoriteAsync(); break;
+                case "playPlaylist": await _ui.PlayPlaylistAsync(command.Target ?? string.Empty); break;
+                case "listPlaylists": return await _ui.ListPlaylistsAsync();
                 case "toggle": await _media.ToggleAsync(); break;
                 case "next": await _media.SkipAsync(true, Count(command.Amount)); break;
                 case "previous": await _media.SkipAsync(false, Count(command.Amount)); break;
@@ -40,11 +48,13 @@ internal sealed class BridgeService : IAsyncDisposable
                 case "refresh":
                     await Task.WhenAll(
                         _media.RefreshAsync(forceSessionResolution: true),
-                        _audio.RefreshAsync(forceSessionResolution: true));
+                        _audio.RefreshAsync(forceSessionResolution: true),
+                        _ui.RefreshAsync());
                     Publish();
                     break;
                 default: throw new InvalidOperationException($"Unknown command '{command.Name}'.");
             }
+            return null;
         }
         finally
         {
@@ -53,6 +63,7 @@ internal sealed class BridgeService : IAsyncDisposable
     }
 
     private static int Count(double? value) => Math.Clamp((int)Math.Round(value ?? 1), 1, 20);
+    private static bool? Flag(double? value) => value is null ? null : value.Value >= 0.5;
 
     private void RequestPublish()
     {
@@ -77,7 +88,8 @@ internal sealed class BridgeService : IAsyncDisposable
                 ++_revision,
                 DateTimeOffset.UtcNow,
                 media,
-                _audio.Snapshot));
+                _audio.Snapshot,
+                _ui.Snapshot));
         }
     }
 
@@ -88,7 +100,15 @@ internal sealed class BridgeService : IAsyncDisposable
         {
             while (await timer.WaitForNextTickAsync(cancellationToken))
             {
-                await Task.WhenAll(_media.RefreshAsync(), _audio.RefreshAsync());
+                try
+                {
+                    await Task.WhenAll(_media.RefreshAsync(), _audio.RefreshAsync(), _ui.RefreshAsync());
+                }
+                catch (OperationCanceledException) { throw; }
+                catch (Exception ex)
+                {
+                    Console.Error.WriteLine($"Watchdog refresh: {ex.Message}");
+                }
             }
         }
         catch (OperationCanceledException) { }
@@ -104,6 +124,7 @@ internal sealed class BridgeService : IAsyncDisposable
         }
         _media.Dispose();
         _audio.Dispose();
+        _ui.Dispose();
         _commandLock.Dispose();
         _lifetime.Dispose();
     }

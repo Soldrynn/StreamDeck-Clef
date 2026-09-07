@@ -18,14 +18,20 @@ internal sealed record AudioSnapshot(
     bool? Muted = null,
     string? BindingKind = null);
 
+internal sealed record UiSnapshot(
+    bool Available,
+    bool? ShuffleActive = null,
+    string? RepeatMode = null);
+
 internal sealed record BridgeSnapshot(
     string Type,
     long Revision,
     DateTimeOffset TimestampUtc,
     MediaSnapshot Media,
-    AudioSnapshot Audio);
+    AudioSnapshot Audio,
+    UiSnapshot Ui);
 
-internal sealed record CommandMessage(string? Type, long Id, string? Name, double? Amount);
+internal sealed record CommandMessage(string? Type, long Id, string? Name, double? Amount, string? Target);
 
 internal sealed record AudioCandidateEvidence(
     string? ProcessName,
